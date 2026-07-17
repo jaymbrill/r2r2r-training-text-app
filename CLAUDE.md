@@ -1,5 +1,10 @@
 # R2R2R Training Text App
 
+An adaptive Rim-to-Rim-to-Rim training coach: nightly SMS training plans (Twilio),
+dynamic plan generation from Strava training load + Claude, agentic SMS feedback chat,
+and a web portal with registration and a calendar plan view. See `PLAN.md` for the
+full feature and architecture plan.
+
 React (Vite) frontend in `client/`, Express backend in `server/`.
 
 ## Commands
