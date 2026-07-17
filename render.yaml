@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: r2r2r-training-text-app
+    runtime: node
+    plan: starter
+    buildCommand: npm run install:all && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/r2r2r.db
+      # Secrets below are entered in the Render dashboard (never committed).
+      # All are optional: the app runs with graceful fallbacks until set.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: STRAVA_CLIENT_ID
+        sync: false
+      - key: STRAVA_CLIENT_SECRET
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false

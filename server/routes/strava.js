@@ -4,7 +4,10 @@ const strava = require('../services/stravaService');
 
 const router = express.Router();
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+// In production the client is served by this server, so the Render URL works
+// for both. Locally the Vite dev server runs on 5173.
+const CLIENT_URL =
+  process.env.CLIENT_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173';
 
 function requireUser(req, res) {
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.userId);

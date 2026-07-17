@@ -14,7 +14,7 @@ function config() {
   return {
     clientId: STRAVA_CLIENT_ID,
     clientSecret: STRAVA_CLIENT_SECRET,
-    baseUrl: APP_BASE_URL || 'http://localhost:3001',
+    baseUrl: APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3001',
   };
 }
 

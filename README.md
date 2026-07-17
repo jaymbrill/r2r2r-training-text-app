@@ -32,3 +32,30 @@ Open http://localhost:5173 in your browser. API requests to `/api/*` are proxied
 | `npm run dev` | Run client and server in development mode |
 | `npm run build` | Build the client for production |
 | `npm start` | Run the production server (serves built client) |
+
+## Deploying to Render
+
+The repo includes a [`render.yaml`](render.yaml) blueprint that sets up everything:
+a Node web service (starter plan), a 1 GB persistent disk for the SQLite database,
+health checks, and placeholders for all secrets.
+
+1. Push this repo to GitHub (already done if you're reading this there).
+2. In the [Render dashboard](https://dashboard.render.com): **New → Blueprint**,
+   connect the GitHub repo, and pick the branch to deploy.
+3. Render reads `render.yaml` and prompts for the secret environment variables
+   (Anthropic, Strava, Twilio). All are optional — leave any blank to use the
+   dev fallbacks — and can be added later under **Environment** on the service.
+4. Deploy. The app URL (`https://<service>.onrender.com`) serves both the web
+   portal and the API. OAuth callbacks and SMS webhooks automatically use
+   Render's external URL — no extra URL configuration needed.
+
+After deploying, update the Strava API app's **Authorization Callback Domain**
+to your `<service>.onrender.com` hostname (Strava only allows one domain, so
+switch it between `localhost` and the Render domain, or use two Strava apps).
+
+Notes:
+- The **starter plan** (paid, ~$7/mo) is recommended: the free tier spins down
+  when idle, which would break the nightly text scheduler, and free instances
+  have no persistent disk (the SQLite database would reset on every deploy).
+- Twilio inbound SMS (Phase 4) will point at
+  `https://<service>.onrender.com/api/sms/webhook` once built.
