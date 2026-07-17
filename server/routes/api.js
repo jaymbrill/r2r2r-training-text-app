@@ -10,5 +10,6 @@ router.get('/health', (req, res) => {
 
 router.use('/users', usersRouter);
 router.use('/strava', stravaRouter);
+router.use('/plans', require('./plans'));
 
 module.exports = router;

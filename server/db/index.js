@@ -97,4 +97,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id, created_at);
 `);
 
+// Lightweight migrations for columns added after initial release
+try {
+  db.exec(`ALTER TABLE users ADD COLUMN last_nightly_sent TEXT`);
+} catch (err) {
+  if (!/duplicate column/.test(err.message)) throw err;
+}
+
 module.exports = db;

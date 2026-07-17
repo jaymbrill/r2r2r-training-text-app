@@ -20,4 +20,10 @@ export const api = {
   stravaSync: (id) => request(`/strava/sync/${id}`, { method: 'POST' }),
   stravaLoad: (id) => request(`/strava/load/${id}`),
   stravaDisconnect: (id) => request(`/strava/connection/${id}`, { method: 'DELETE' }),
+  generatePlan: (id) => request(`/plans/generate/${id}`, { method: 'POST' }),
+  currentPlan: (id) => request(`/plans/current/${id}`),
+  workouts: (id, from, to) => request(`/plans/workouts/${id}?from=${from}&to=${to}`),
+  updateWorkout: (workoutId, updates) =>
+    request(`/plans/workouts/${workoutId}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+  sendNightly: (id) => request(`/plans/send-nightly/${id}`, { method: 'POST' }),
 };

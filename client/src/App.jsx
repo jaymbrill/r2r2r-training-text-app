@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from './api'
 import ProfileForm from './ProfileForm'
 import StravaSection from './StravaSection'
+import PlanCalendar from './PlanCalendar'
 import './App.css'
 
 export default function App() {
@@ -89,11 +90,12 @@ export default function App() {
         <button className="link" onClick={handleSignOut}>Sign out</button>
       </section>
       <StravaSection userId={user.id} />
+      <PlanCalendar userId={user.id} />
       <section className="coming-soon">
         <h3>Coming soon</h3>
         <ul>
-          <li>Your Claude-generated plan in calendar view</li>
-          <li>Nightly training texts</li>
+          <li>Text back to adjust your plan (agentic SMS chat)</li>
+          <li>Compliance tracking and encouragement</li>
         </ul>
       </section>
     </main>
