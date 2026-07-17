@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import ProfileForm from './ProfileForm'
+import StravaSection from './StravaSection'
 import './App.css'
 
 export default function App() {
@@ -87,10 +88,10 @@ export default function App() {
         <button onClick={() => setEditing(true)}>Edit profile</button>
         <button className="link" onClick={handleSignOut}>Sign out</button>
       </section>
+      <StravaSection userId={user.id} />
       <section className="coming-soon">
         <h3>Coming soon</h3>
         <ul>
-          <li>Connect Strava to track your training load</li>
           <li>Your Claude-generated plan in calendar view</li>
           <li>Nightly training texts</li>
         </ul>

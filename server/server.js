@@ -13,6 +13,12 @@ app.use(express.json());
 
 app.use('/api', apiRoutes);
 
+// JSON error handler (honors err.status set by services)
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ errors: [err.message || 'Internal server error'] });
+});
+
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
   app.get('*', (req, res) => {
