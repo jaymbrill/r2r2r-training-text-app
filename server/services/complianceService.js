@@ -76,4 +76,51 @@ async function matchAndEncourage(userId) {
   return { matched };
 }
 
-module.exports = { matchAndEncourage };
+/**
+ * Adherence stats over the trailing window (default 28 days, through today).
+ * Rest days don't count toward adherence.
+ */
+function computeCompliance(userId, days = 28) {
+  const today = new Date().toISOString().slice(0, 10);
+  const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const rows = db
+    .prepare(
+      `SELECT status, COUNT(*) AS n FROM planned_workouts
+       WHERE user_id = ? AND date BETWEEN ? AND ? AND workout_type != 'rest'
+       GROUP BY status`
+    )
+    .all(userId, since, today);
+  const byStatus = Object.fromEntries(rows.map((r) => [r.status, r.n]));
+  const completed = byStatus.completed || 0;
+  const skipped = byStatus.skipped || 0;
+  const planned = byStatus.planned || 0; // scheduled but no matching activity (yet)
+  const modified = byStatus.modified || 0;
+  const total = completed + skipped + planned + modified;
+
+  // Current streak: consecutive non-rest workout days completed, walking
+  // backwards from yesterday (today may legitimately still be pending)
+  const past = db
+    .prepare(
+      `SELECT date, status FROM planned_workouts
+       WHERE user_id = ? AND date < ? AND workout_type != 'rest'
+       ORDER BY date DESC LIMIT 60`
+    )
+    .all(userId, today);
+  let streak = 0;
+  for (const w of past) {
+    if (w.status === 'completed') streak += 1;
+    else break;
+  }
+
+  return {
+    windowDays: days,
+    totalWorkouts: total,
+    completed,
+    skipped,
+    pending: planned,
+    adherencePct: total ? Math.round((completed / total) * 100) : null,
+    streak,
+  };
+}
+
+module.exports = { matchAndEncourage, computeCompliance, encouragementText };

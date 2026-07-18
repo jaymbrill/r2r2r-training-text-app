@@ -26,4 +26,5 @@ export const api = {
   updateWorkout: (workoutId, updates) =>
     request(`/plans/workouts/${workoutId}`, { method: 'PATCH', body: JSON.stringify(updates) }),
   sendNightly: (id) => request(`/plans/send-nightly/${id}`, { method: 'POST' }),
+  compliance: (id, days = 28) => request(`/plans/compliance/${id}?days=${days}`),
 };

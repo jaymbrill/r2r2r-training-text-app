@@ -13,12 +13,29 @@ function twilioClient() {
  * Without Twilio credentials (dev), the message is logged and stored
  * with a null twilio_sid so the rest of the pipeline is testable.
  */
+/** Daily cost cap: max app-initiated texts per user per day. */
+function underDailyCap(userId) {
+  const cap = Number(process.env.MAX_SMS_PER_DAY || 6);
+  const sentToday = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM messages
+       WHERE user_id = ? AND direction = 'outbound' AND date(created_at) = date('now')`
+    )
+    .get(userId).n;
+  return sentToday < cap;
+}
+
 async function sendSms(userId, body) {
   const user = db.prepare('SELECT phone FROM users WHERE id = ?').get(userId);
   if (!user) {
     const err = new Error('User not found');
     err.status = 404;
     throw err;
+  }
+
+  if (!underDailyCap(userId)) {
+    console.log(`[sms:cap] user ${userId} hit the daily SMS cap; message not sent`);
+    return { sid: null, delivered: false, capped: true };
   }
 
   const client = twilioClient();

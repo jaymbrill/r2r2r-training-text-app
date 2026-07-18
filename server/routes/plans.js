@@ -107,6 +107,13 @@ router.patch('/workouts/:id', (req, res) => {
   res.json(serializeWorkout(updated));
 });
 
+// Adherence stats for the UI (trailing window, default 28 days)
+router.get('/compliance/:userId', (req, res) => {
+  const { computeCompliance } = require('../services/complianceService');
+  const days = Math.min(365, Math.max(7, Number(req.query.days) || 28));
+  res.json(computeCompliance(Number(req.params.userId), days));
+});
+
 // Trigger tonight's text now (dev/testing convenience)
 router.post('/send-nightly/:userId', async (req, res, next) => {
   try {

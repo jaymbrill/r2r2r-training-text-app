@@ -98,10 +98,15 @@ db.exec(`
 `);
 
 // Lightweight migrations for columns added after initial release
-try {
-  db.exec(`ALTER TABLE users ADD COLUMN last_nightly_sent TEXT`);
-} catch (err) {
-  if (!/duplicate column/.test(err.message)) throw err;
+for (const ddl of [
+  `ALTER TABLE users ADD COLUMN last_nightly_sent TEXT`,
+  `ALTER TABLE users ADD COLUMN last_weekly_sent TEXT`,
+]) {
+  try {
+    db.exec(ddl);
+  } catch (err) {
+    if (!/duplicate column/.test(err.message)) throw err;
+  }
 }
 
 module.exports = db;

@@ -24,6 +24,7 @@ export default function PlanCalendar({ userId }) {
   const [month, setMonth] = useState(today.getMonth()) // 0-based
   const [plan, setPlan] = useState(null)
   const [workouts, setWorkouts] = useState([])
+  const [compliance, setCompliance] = useState(null)
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -34,6 +35,7 @@ export default function PlanCalendar({ userId }) {
       const [from, to] = monthRange(year, month)
       setWorkouts(await api.workouts(userId, from, to))
       setPlan(await api.currentPlan(userId).catch(() => null))
+      setCompliance(await api.compliance(userId).catch(() => null))
     } catch (err) {
       setError(err.message)
     }
@@ -106,6 +108,27 @@ export default function PlanCalendar({ userId }) {
       <button onClick={handleGenerate} disabled={busy}>
         {busy ? 'Working…' : plan ? 'Regenerate plan' : 'Generate plan'}
       </button>
+
+      {compliance && compliance.totalWorkouts > 0 && (
+        <div className="compliance-row">
+          <div className="stat">
+            <strong>{compliance.adherencePct != null ? `${compliance.adherencePct}%` : '—'}</strong>
+            <span>adherence ({compliance.windowDays}d)</span>
+          </div>
+          <div className="stat">
+            <strong>{compliance.completed}</strong>
+            <span>completed</span>
+          </div>
+          <div className="stat">
+            <strong>{compliance.skipped}</strong>
+            <span>skipped</span>
+          </div>
+          <div className="stat">
+            <strong>{compliance.streak}</strong>
+            <span>workout streak</span>
+          </div>
+        </div>
+      )}
 
       <div className="calendar-header">
         <button className="link" onClick={prevMonth}>← previous</button>

@@ -3,7 +3,7 @@ const db = require('../db');
 const { generatePlan } = require('./claudeService');
 const { sendSms } = require('./twilioService');
 
-/** Current HH:MM and YYYY-MM-DD in the user's timezone. */
+/** Current HH:MM, YYYY-MM-DD, and weekday in the user's timezone. */
 function localNow(timezone) {
   const now = new Date();
   const time = new Intl.DateTimeFormat('en-GB', {
@@ -13,7 +13,41 @@ function localNow(timezone) {
     hour12: false,
   }).format(now);
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
-  return { time, date };
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' }).format(now);
+  return { time, date, weekday };
+}
+
+/** Sunday-evening recap: adherence, volume, ramp, days to goal. */
+function weeklySummaryText(userId) {
+  const { computeCompliance } = require('./complianceService');
+  const { computeTrainingLoad } = require('./stravaService');
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const c = computeCompliance(userId, 7);
+  const load = computeTrainingLoad(userId);
+
+  const parts = [];
+  if (c.totalWorkouts > 0) {
+    parts.push(`Week recap: ${c.completed}/${c.totalWorkouts} workouts done${c.adherencePct != null ? ` (${c.adherencePct}%)` : ''}.`);
+  } else {
+    parts.push('Week recap:');
+  }
+  parts.push(`${load.acute7d.hours}h, ${load.acute7d.distanceKm} km, ${load.acute7d.elevationM} m vert.`);
+  if (c.streak >= 3) parts.push(`${c.streak} workouts in a row — keep the chain going!`);
+  if (load.rampRatio != null) {
+    parts.push(
+      load.rampRatio > 1.5
+        ? `Ramp ${load.rampRatio} is hot — this week we absorb it.`
+        : load.rampRatio < 0.8
+          ? `Ramp ${load.rampRatio} — room to build this week.`
+          : `Ramp ${load.rampRatio} — right in the sweet spot.`
+    );
+  }
+  if (user.goal_date) {
+    const daysToGo = Math.max(0, Math.round((new Date(user.goal_date) - Date.now()) / (24 * 3600 * 1000)));
+    parts.push(`${daysToGo} days to the Canyon.`);
+  }
+  parts.push('Reply anytime to shape next week.');
+  return parts.join(' ');
 }
 
 /**
@@ -32,11 +66,21 @@ async function sendNightlyText(userId) {
 
 /** One scheduler tick: send to every user whose local time matches their send_time. */
 async function tick() {
-  const users = db.prepare('SELECT id, timezone, send_time, last_nightly_sent FROM users').all();
+  const users = db
+    .prepare('SELECT id, timezone, send_time, last_nightly_sent, last_weekly_sent FROM users')
+    .all();
   for (const user of users) {
     try {
-      const { time, date } = localNow(user.timezone);
+      const { time, date, weekday } = localNow(user.timezone);
       if (time !== user.send_time) continue;
+
+      // Sunday: weekly recap goes out first, then the nightly plan text
+      if (weekday === 'Sun' && user.last_weekly_sent !== date) {
+        console.log(`[scheduler] weekly summary for user ${user.id}`);
+        await sendSms(user.id, weeklySummaryText(user.id));
+        db.prepare('UPDATE users SET last_weekly_sent = ? WHERE id = ?').run(date, user.id);
+      }
+
       if (user.last_nightly_sent === date) continue; // already sent today
       console.log(`[scheduler] nightly text for user ${user.id}`);
       await sendNightlyText(user.id);
@@ -71,4 +115,4 @@ function start() {
   console.log('Schedulers started (nightly texts + hourly compliance)');
 }
 
-module.exports = { start, tick, sendNightlyText, complianceTick };
+module.exports = { start, tick, sendNightlyText, complianceTick, weeklySummaryText };
