@@ -23,9 +23,9 @@ const planSchema = {
             enum: ['run', 'long_run', 'hike', 'vert', 'back_to_back', 'cross_train', 'strength', 'rest'],
           },
           description: { type: 'string', description: 'One or two sentences the athlete reads' },
-          targetDistanceKm: { type: ['number', 'null'] },
-          targetElevationM: { type: ['number', 'null'] },
-          targetDurationMin: { type: ['number', 'null'] },
+          targetDistanceKm: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+          targetElevationM: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+          targetDurationMin: { anyOf: [{ type: 'number' }, { type: 'null' }] },
         },
         required: ['date', 'workoutType', 'description', 'targetDistanceKm', 'targetElevationM', 'targetDurationMin'],
         additionalProperties: false,
@@ -112,7 +112,8 @@ async function generateWithClaude(context, startDate) {
     recentSmsConversation: recentMessages,
   };
 
-  const response = await client.messages.create({
+  // Stream to avoid HTTP timeouts on longer generations.
+  const stream = client.messages.stream({
     model: MODEL,
     max_tokens: 16000,
     system: SYSTEM_PROMPT,
@@ -124,6 +125,7 @@ async function generateWithClaude(context, startDate) {
       },
     ],
   });
+  const response = await stream.finalMessage();
 
   if (response.stop_reason === 'refusal') {
     const err = new Error('Plan generation was refused');
@@ -131,6 +133,11 @@ async function generateWithClaude(context, startDate) {
     throw err;
   }
   const text = response.content.find((b) => b.type === 'text')?.text;
+  if (!text) {
+    const err = new Error('Claude returned no plan content');
+    err.status = 502;
+    throw err;
+  }
   return { plan: JSON.parse(text), model: MODEL };
 }
 

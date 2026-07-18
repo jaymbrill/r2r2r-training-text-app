@@ -25,6 +25,12 @@ router.post('/generate/:userId', async (req, res, next) => {
     const result = await generatePlan(Number(req.params.userId));
     res.status(201).json(result);
   } catch (err) {
+    // Surface Anthropic/Strava failures as a clear, actionable message
+    // (status + request_id) instead of a generic 500.
+    if (err.status && err.status !== 500) {
+      console.error('Plan generation failed:', err.status, err.message, err.request_id || '');
+      return res.status(err.status).json({ errors: [`Plan generation failed: ${err.message}`] });
+    }
     next(err);
   }
 });
