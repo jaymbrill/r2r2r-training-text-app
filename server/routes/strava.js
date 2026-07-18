@@ -37,9 +37,12 @@ router.get('/callback', async (req, res) => {
   try {
     await strava.exchangeCode(Number(userId), code);
     // Initial sync so the user sees data right away; ignore failures here
-    strava.syncActivities(Number(userId)).catch((err) => {
-      console.error('Initial Strava sync failed:', err.message);
-    });
+    strava
+      .syncActivities(Number(userId))
+      .then(() => require('../services/complianceService').matchAndEncourage(Number(userId)))
+      .catch((err) => {
+        console.error('Initial Strava sync failed:', err.message);
+      });
     res.redirect(`${CLIENT_URL}?strava=connected`);
   } catch (err) {
     console.error('Strava OAuth exchange failed:', err.message);
@@ -53,12 +56,14 @@ router.get('/status/:userId', (req, res) => {
   res.json(strava.connectionStatus(Number(req.params.userId)));
 });
 
-// Manual activity sync
+// Manual activity sync (also matches workouts + sends encouragement)
 router.post('/sync/:userId', async (req, res, next) => {
   try {
     if (!requireUser(req, res)) return;
     const result = await strava.syncActivities(Number(req.params.userId));
-    res.json(result);
+    const { matchAndEncourage } = require('../services/complianceService');
+    const { matched } = await matchAndEncourage(Number(req.params.userId));
+    res.json({ ...result, workoutsCompleted: matched });
   } catch (err) {
     next(err);
   }

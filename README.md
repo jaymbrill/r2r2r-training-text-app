@@ -57,5 +57,8 @@ Notes:
 - The **starter plan** (paid, ~$7/mo) is recommended: the free tier spins down
   when idle, which would break the nightly text scheduler, and free instances
   have no persistent disk (the SQLite database would reset on every deploy).
-- Twilio inbound SMS (Phase 4) will point at
-  `https://<service>.onrender.com/api/sms/webhook` once built.
+- To enable two-way SMS chat: in the [Twilio console](https://console.twilio.com),
+  open your phone number → **Messaging Configuration** → set "A message comes in"
+  to **Webhook**, method **POST**, URL
+  `https://<service>.onrender.com/api/sms/webhook`. Inbound texts are
+  signature-validated automatically when `TWILIO_AUTH_TOKEN` is set.

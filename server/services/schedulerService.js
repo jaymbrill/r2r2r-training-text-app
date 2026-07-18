@@ -46,9 +46,29 @@ async function tick() {
   }
 }
 
-function start() {
-  cron.schedule('* * * * *', tick); // check every minute
-  console.log('Nightly text scheduler started');
+/**
+ * Hourly: sync Strava for connected users, match activities to planned
+ * workouts, and send post-workout encouragement texts.
+ */
+async function complianceTick() {
+  const { syncActivities } = require('./stravaService');
+  const { matchAndEncourage } = require('./complianceService');
+  const users = db.prepare('SELECT user_id FROM strava_accounts').all();
+  for (const { user_id } of users) {
+    try {
+      await syncActivities(user_id, { daysBack: 7 });
+      const { matched } = await matchAndEncourage(user_id);
+      if (matched) console.log(`[scheduler] user ${user_id}: ${matched} workout(s) completed`);
+    } catch (err) {
+      console.error(`[scheduler] compliance for user ${user_id} failed:`, err.message);
+    }
+  }
 }
 
-module.exports = { start, tick, sendNightlyText };
+function start() {
+  cron.schedule('* * * * *', tick); // nightly-text check every minute
+  cron.schedule('10 * * * *', complianceTick); // compliance + encouragement hourly
+  console.log('Schedulers started (nightly texts + hourly compliance)');
+}
+
+module.exports = { start, tick, sendNightlyText, complianceTick };
