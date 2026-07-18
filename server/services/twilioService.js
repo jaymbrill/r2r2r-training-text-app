@@ -25,7 +25,7 @@ function underDailyCap(userId) {
   return sentToday < cap;
 }
 
-async function sendSms(userId, body) {
+async function sendSms(userId, body, { bypassCap = false } = {}) {
   const user = db.prepare('SELECT phone FROM users WHERE id = ?').get(userId);
   if (!user) {
     const err = new Error('User not found');
@@ -33,7 +33,9 @@ async function sendSms(userId, body) {
     throw err;
   }
 
-  if (!underDailyCap(userId)) {
+  // Replies to messages the athlete sent bypass the cap (user-initiated);
+  // the cap guards app-initiated volume (nightly, encouragement, recaps).
+  if (!bypassCap && !underDailyCap(userId)) {
     console.log(`[sms:cap] user ${userId} hit the daily SMS cap; message not sent`);
     return { sid: null, delivered: false, capped: true };
   }

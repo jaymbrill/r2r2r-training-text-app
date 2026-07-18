@@ -204,12 +204,13 @@ function chatFallback(inboundBody) {
 
 /**
  * Handle an inbound SMS: record it, get the coach's reply, apply any
- * constraints, regenerate the plan when needed. Returns the reply text
- * (recorded as an outbound message by the caller or webhook).
+ * constraints/adjustments, regenerate the plan when needed.
+ * Returns { userId, reply } — the caller is responsible for delivering
+ * (and thereby recording) the outbound reply, e.g. via twilioService.sendSms.
  */
 async function handleInboundSms(phone, body) {
   const user = findUserByPhone(phone);
-  if (!user) return null; // unknown sender: no reply
+  if (!user) return null; // unknown sender: caller decides what to do
 
   db.prepare(`INSERT INTO messages (user_id, direction, body) VALUES (?, 'inbound', ?)`).run(user.id, body);
 
@@ -231,8 +232,7 @@ async function handleInboundSms(phone, body) {
     generatePlan(user.id).catch((err) => console.error('Plan regen after SMS failed:', err.message));
   }
 
-  db.prepare(`INSERT INTO messages (user_id, direction, body) VALUES (?, 'outbound', ?)`).run(user.id, result.reply);
-  return result.reply;
+  return { userId: user.id, reply: result.reply };
 }
 
 module.exports = { handleInboundSms, findUserByPhone, applyAdjustments };
