@@ -191,6 +191,90 @@ function computeTrainingLoad(userId, now = new Date()) {
   };
 }
 
+/** Fetch one activity by id and upsert it (used by webhook events). */
+async function fetchAndStoreActivity(userId, activityId) {
+  const accessToken = await getFreshAccessToken(userId);
+  const res = await fetch(`${STRAVA_API}/activities/${activityId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const err = new Error(`Strava activity fetch failed (${res.status})`);
+    err.status = 502;
+    throw err;
+  }
+  const a = await res.json();
+  db.prepare(
+    `INSERT INTO activities (user_id, strava_activity_id, type, start_date, distance_m, elevation_gain_m, moving_time_s, average_heartrate, raw_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(strava_activity_id) DO UPDATE SET
+       type = excluded.type,
+       start_date = excluded.start_date,
+       distance_m = excluded.distance_m,
+       elevation_gain_m = excluded.elevation_gain_m,
+       moving_time_s = excluded.moving_time_s,
+       average_heartrate = excluded.average_heartrate,
+       raw_json = excluded.raw_json`
+  ).run(
+    userId,
+    String(a.id),
+    a.type || 'Unknown',
+    a.start_date,
+    a.distance || 0,
+    a.total_elevation_gain || 0,
+    a.moving_time || 0,
+    a.average_heartrate ?? null,
+    JSON.stringify({ name: a.name, sport_type: a.sport_type })
+  );
+}
+
+function findUserIdByAthleteId(athleteId) {
+  const row = db
+    .prepare('SELECT user_id FROM strava_accounts WHERE athlete_id = ?')
+    .get(String(athleteId));
+  return row ? row.user_id : null;
+}
+
+/**
+ * Create the Strava push subscription for instant activity events, if one
+ * doesn't already exist for our callback URL. Requires a public HTTPS URL
+ * (i.e. on Render) — silently skipped in local dev.
+ */
+async function ensureWebhookSubscription() {
+  const { clientId, clientSecret, baseUrl } = config();
+  if (!baseUrl.startsWith('https://')) {
+    console.log('[strava] webhook subscription skipped (no public https URL)');
+    return;
+  }
+  const callbackUrl = `${baseUrl}/api/strava/webhook`;
+  const verifyToken = process.env.STRAVA_VERIFY_TOKEN || 'r2r2r-verify';
+
+  const listRes = await fetch(
+    `${STRAVA_API}/push_subscriptions?client_id=${clientId}&client_secret=${clientSecret}`
+  );
+  if (!listRes.ok) throw new Error(`Strava subscription list failed (${listRes.status})`);
+  const existing = await listRes.json();
+  if (existing.some((s) => s.callback_url === callbackUrl)) {
+    console.log('[strava] webhook subscription already active');
+    return;
+  }
+
+  const createRes = await fetch(`${STRAVA_API}/push_subscriptions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      callback_url: callbackUrl,
+      verify_token: verifyToken,
+    }),
+  });
+  if (!createRes.ok) {
+    const text = await createRes.text();
+    throw new Error(`Strava subscription create failed (${createRes.status}): ${text}`);
+  }
+  console.log('[strava] webhook subscription created for', callbackUrl);
+}
+
 function connectionStatus(userId) {
   const account = db
     .prepare('SELECT athlete_id, last_sync_at FROM strava_accounts WHERE user_id = ?')
@@ -218,4 +302,7 @@ module.exports = {
   computeTrainingLoad,
   connectionStatus,
   disconnect,
+  fetchAndStoreActivity,
+  findUserIdByAthleteId,
+  ensureWebhookSubscription,
 };

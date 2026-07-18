@@ -75,6 +75,38 @@ router.get('/load/:userId', (req, res) => {
   res.json(strava.computeTrainingLoad(Number(req.params.userId)));
 });
 
+// Strava webhook validation handshake (GET with hub.challenge)
+router.get('/webhook', (req, res) => {
+  const verifyToken = process.env.STRAVA_VERIFY_TOKEN || 'r2r2r-verify';
+  if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === verifyToken) {
+    return res.json({ 'hub.challenge': req.query['hub.challenge'] });
+  }
+  res.status(403).json({ errors: ['Verification failed'] });
+});
+
+// Strava webhook events: new/updated activities trigger instant sync,
+// workout matching, and encouragement texts
+router.post('/webhook', (req, res) => {
+  res.status(200).send('ok'); // Strava requires a fast 200; process async
+
+  const event = req.body || {};
+  if (event.object_type !== 'activity') return;
+  if (!['create', 'update'].includes(event.aspect_type)) return;
+
+  const userId = strava.findUserIdByAthleteId(event.owner_id);
+  if (!userId) return;
+
+  (async () => {
+    try {
+      await strava.fetchAndStoreActivity(userId, event.object_id);
+      const { matched } = await require('../services/complianceService').matchAndEncourage(userId);
+      console.log(`[strava:webhook] user ${userId} activity ${event.object_id} (${matched} workout(s) matched)`);
+    } catch (err) {
+      console.error(`[strava:webhook] user ${userId} failed:`, err.message);
+    }
+  })();
+});
+
 // Disconnect Strava
 router.delete('/connection/:userId', (req, res) => {
   if (!requireUser(req, res)) return;

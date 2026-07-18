@@ -27,12 +27,30 @@ const replySchema = {
         additionalProperties: false,
       },
     },
+    adjustments: {
+      type: 'array',
+      description: 'Direct edits to specific upcoming workouts (empty if none)',
+      items: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'YYYY-MM-DD of the workout to adjust' },
+          action: { type: 'string', enum: ['skip', 'move', 'modify'] },
+          newDate: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'YYYY-MM-DD, required for move' },
+          description: {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+            description: 'New workout description, for modify',
+          },
+        },
+        required: ['date', 'action', 'newDate', 'description'],
+        additionalProperties: false,
+      },
+    },
     updatePlan: {
       type: 'boolean',
-      description: 'True if upcoming workouts should be regenerated because of this message',
+      description: 'True if upcoming workouts should be fully regenerated because of this message',
     },
   },
-  required: ['reply', 'constraints', 'updatePlan'],
+  required: ['reply', 'constraints', 'adjustments', 'updatePlan'],
   additionalProperties: false,
 };
 
@@ -40,14 +58,27 @@ const CHAT_SYSTEM_PROMPT = `You are the athlete's R2R2R (Grand Canyon Rim to Rim
 texting over SMS. The athlete texts you feedback about how they feel, questions about their plan, or
 limitations (injuries, fatigue, travel, schedule changes).
 
+You can do four things with each message:
+1. ANSWER questions about the plan — you have their upcoming workouts (dates, types, targets),
+   training load, and goal date in context. Answer concretely from that data.
+2. RECORD constraints — when the message implies a training limitation, capture it as a structured
+   constraint with dates when they can be inferred (an injury is open-ended: null endDate;
+   "traveling Thu-Fri" has dates).
+3. ADJUST specific workouts directly — when they ask for a targeted change ("move Saturday's long
+   run to Sunday", "make tomorrow easier", "skip Tuesday"), use the adjustments array:
+   - skip: cancels that day's workout
+   - move: moves it to newDate (pick a sensible day if they gave a weekday name)
+   - modify: rewrites the description (keep it consistent with their goal)
+   Only adjust workouts that exist in the upcoming list, and confirm what you changed in the reply.
+4. REGENERATE — set updatePlan=true only when the situation calls for rebuilding the whole
+   upcoming plan (new injury, deep fatigue, multi-day travel, missed key sessions). Prefer small
+   direct adjustments over regeneration when the athlete asked for a specific change. Never both
+   adjust and regenerate in the same reply.
+
 Rules:
 - Reply like a coach who knows them: warm, brief (SMS-length), specific to their situation.
-- When the message implies a training limitation, capture it as a structured constraint with dates
-  when they can be inferred (an injury is open-ended: null endDate; "traveling Thu-Fri" has dates).
-- Set updatePlan=true when the message should change upcoming workouts (injury, deep fatigue,
-  travel, missed key session). Set it false for simple questions, general chat, or good news.
 - When updatePlan is true, tell them their plan is being updated and they'll see it in the app
-  and in tonight's text.
+  and in tonight's text. When you made direct adjustments, restate them plainly.
 - Never give medical advice beyond common training sense; suggest seeing a professional for pain
   that is sharp, worsening, or changes their gait.`;
 
@@ -68,12 +99,63 @@ function recentConversation(userId, limit = 12) {
     .reverse();
 }
 
-function upcomingWorkouts(userId, days = 7) {
+function upcomingWorkouts(userId, days = 14) {
   const today = new Date().toISOString().slice(0, 10);
   const end = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   return db
-    .prepare(`SELECT date, workout_type, description, status FROM planned_workouts WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date`)
+    .prepare(
+      `SELECT date, workout_type, description, status,
+              target_distance_m / 1000.0 AS target_km,
+              target_elevation_m AS target_vert_m,
+              target_duration_s / 60 AS target_min
+       FROM planned_workouts WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date`
+    )
     .all(userId, today, end);
+}
+
+/**
+ * Apply the coach's direct workout adjustments. Each applied change is also
+ * recorded as a constraint so later regenerations respect it.
+ */
+function applyAdjustments(userId, adjustments) {
+  const insertConstraint = db.prepare(
+    `INSERT INTO constraints (user_id, kind, description, start_date, end_date, source) VALUES (?, 'manual_edit', ?, ?, ?, 'sms')`
+  );
+  let applied = 0;
+  for (const adj of adjustments || []) {
+    const workout = db
+      .prepare(`SELECT * FROM planned_workouts WHERE user_id = ? AND date = ? AND status IN ('planned', 'modified')`)
+      .get(userId, adj.date);
+    if (!workout) continue;
+
+    if (adj.action === 'skip') {
+      db.prepare(`UPDATE planned_workouts SET status = 'skipped' WHERE id = ?`).run(workout.id);
+      insertConstraint.run(userId, `Athlete skipped the ${adj.date} workout via text`, adj.date, adj.date);
+      applied += 1;
+    } else if (adj.action === 'move' && adj.newDate && /^\d{4}-\d{2}-\d{2}$/.test(adj.newDate)) {
+      db.prepare(`UPDATE planned_workouts SET date = ?, status = 'modified' WHERE id = ?`).run(adj.newDate, workout.id);
+      insertConstraint.run(
+        userId,
+        `Athlete moved the ${adj.date} workout to ${adj.newDate} via text`,
+        adj.date,
+        adj.newDate
+      );
+      applied += 1;
+    } else if (adj.action === 'modify' && adj.description) {
+      db.prepare(`UPDATE planned_workouts SET description = ?, status = 'modified' WHERE id = ?`).run(
+        adj.description,
+        workout.id
+      );
+      insertConstraint.run(
+        userId,
+        `Athlete adjusted the ${adj.date} workout via text: ${adj.description}`,
+        adj.date,
+        adj.date
+      );
+      applied += 1;
+    }
+  }
+  return applied;
 }
 
 async function chatWithClaude(user, inboundBody) {
@@ -142,6 +224,8 @@ async function handleInboundSms(phone, body) {
     insertConstraint.run(user.id, c.kind, c.description, c.startDate || null, c.endDate || null);
   }
 
+  applyAdjustments(user.id, result.adjustments);
+
   if (result.updatePlan) {
     // Regenerate in the background; the reply already tells the athlete
     generatePlan(user.id).catch((err) => console.error('Plan regen after SMS failed:', err.message));
@@ -151,4 +235,4 @@ async function handleInboundSms(phone, body) {
   return result.reply;
 }
 
-module.exports = { handleInboundSms, findUserByPhone };
+module.exports = { handleInboundSms, findUserByPhone, applyAdjustments };

@@ -31,4 +31,10 @@ app.listen(PORT, () => {
   if (process.env.DISABLE_SCHEDULER !== 'true') {
     require('./services/schedulerService').start();
   }
+  // Subscribe to Strava push events for instant activity detection
+  if (process.env.STRAVA_CLIENT_ID) {
+    require('./services/stravaService')
+      .ensureWebhookSubscription()
+      .catch((err) => console.error('[strava] webhook subscription failed:', err.message));
+  }
 });
