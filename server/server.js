@@ -31,10 +31,24 @@ app.listen(PORT, () => {
   if (process.env.DISABLE_SCHEDULER !== 'true') {
     require('./services/schedulerService').start();
   }
-  // Subscribe to Strava push events for instant activity detection
+  // Subscribe to Strava push events for instant activity detection.
+  // Strava validates the callback URL with a GET at creation time, and during
+  // a deploy this instance may not be routable yet - so retry with delays.
   if (process.env.STRAVA_CLIENT_ID) {
-    require('./services/stravaService')
-      .ensureWebhookSubscription()
-      .catch((err) => console.error('[strava] webhook subscription failed:', err.message));
+    const attempt = (delaysMs) => {
+      const [delay, ...rest] = delaysMs;
+      setTimeout(() => {
+        require('./services/stravaService')
+          .ensureWebhookSubscription()
+          .catch((err) => {
+            console.error('[strava] webhook subscription failed:', err.message);
+            if (rest.length) {
+              console.log(`[strava] retrying subscription in ${rest[0] / 1000}s`);
+              attempt(rest);
+            }
+          });
+      }, delay);
+    };
+    attempt([45_000, 120_000, 600_000]); // 45s, 2min, 10min after startup
   }
 });
