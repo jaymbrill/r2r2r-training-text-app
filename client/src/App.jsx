@@ -74,6 +74,22 @@ function Home() {
     setEditing(false)
   }
 
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Delete your account? This permanently removes your profile, training plan, ' +
+        'activity history, messages, and Strava connection. This cannot be undone.'
+    )
+    if (!confirmed) return
+    try {
+      await api.deleteUser(user.id)
+      localStorage.removeItem('userId')
+      setUser(null)
+      setEditing(false)
+    } catch (err) {
+      window.alert(`Deleting the account failed: ${err.message}`)
+    }
+  }
+
   if (loading) return <main><p>Loading…</p></main>
 
   if (!user) {
@@ -129,6 +145,7 @@ function Home() {
         </dl>
         <button onClick={() => setEditing(true)}>Edit profile</button>
         <button className="link" onClick={handleSignOut}>Sign out</button>
+        <button className="link danger" onClick={handleDeleteAccount}>Delete my account</button>
       </section>
       <StravaSection userId={user.id} />
       <PlanCalendar userId={user.id} />

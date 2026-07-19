@@ -16,6 +16,7 @@ export const api = {
   createUser: (profile) => request('/users', { method: 'POST', body: JSON.stringify(profile) }),
   getUser: (id) => request(`/users/${id}`),
   updateUser: (id, updates) => request(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+  deleteUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   stravaStatus: (id) => request(`/strava/status/${id}`),
   stravaSync: (id) => request(`/strava/sync/${id}`, { method: 'POST' }),
   stravaLoad: (id) => request(`/strava/load/${id}`),
