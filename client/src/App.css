@@ -102,6 +102,47 @@ button.link {
   color: #777;
 }
 
+.site-footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.site-footer a {
+  color: #888;
+}
+
+.consent-note {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.legal-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.legal-updated {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 0;
+}
+
+.legal-page h2 {
+  margin-top: 1.75rem;
+  font-size: 1.05rem;
+}
+
+.legal-page p,
+.legal-page li {
+  line-height: 1.55;
+}
+
 .strava-section {
   margin-top: 2.5rem;
   padding-top: 1rem;

@@ -3,9 +3,42 @@ import { api } from './api'
 import ProfileForm from './ProfileForm'
 import StravaSection from './StravaSection'
 import PlanCalendar from './PlanCalendar'
+import { TermsPage, PrivacyPage } from './LegalPages'
 import './App.css'
 
+function Footer() {
+  return (
+    <footer className="site-footer">
+      <a href="#/terms">Terms &amp; Conditions</a>
+      <span aria-hidden="true">·</span>
+      <a href="#/privacy">Privacy Statement</a>
+      <span aria-hidden="true">·</span>
+      <span>Msg &amp; data rates may apply. Reply STOP to opt out.</span>
+    </footer>
+  )
+}
+
+function useHashRoute() {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const onChange = () => {
+      setHash(window.location.hash)
+      window.scrollTo(0, 0)
+    }
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
+  return hash
+}
+
 export default function App() {
+  const hash = useHashRoute()
+  if (hash === '#/terms') return (<main><TermsPage /><Footer /></main>)
+  if (hash === '#/privacy') return (<main><PrivacyPage /><Footer /></main>)
+  return <Home />
+}
+
+function Home() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -53,6 +86,13 @@ export default function App() {
         </p>
         <h2>Create your profile</h2>
         <ProfileForm submitLabel="Register" onSubmit={handleRegister} />
+        <p className="consent-note">
+          By registering you agree to the <a href="#/terms">Terms &amp; Conditions</a> and{' '}
+          <a href="#/privacy">Privacy Statement</a>, and consent to receive recurring automated
+          training texts at the number provided. Msg &amp; data rates may apply. Reply STOP to
+          opt out, HELP for help.
+        </p>
+        <Footer />
       </main>
     )
   }
@@ -63,6 +103,7 @@ export default function App() {
         <h1>Edit profile</h1>
         <ProfileForm initial={user} submitLabel="Save changes" onSubmit={handleUpdate} />
         <button className="link" onClick={() => setEditing(false)}>Cancel</button>
+        <Footer />
       </main>
     )
   }
@@ -91,13 +132,7 @@ export default function App() {
       </section>
       <StravaSection userId={user.id} />
       <PlanCalendar userId={user.id} />
-      <section className="coming-soon">
-        <h3>Coming soon</h3>
-        <ul>
-          <li>Text back to adjust your plan (agentic SMS chat)</li>
-          <li>Compliance tracking and encouragement</li>
-        </ul>
-      </section>
+      <Footer />
     </main>
   )
 }
