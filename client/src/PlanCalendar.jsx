@@ -167,8 +167,8 @@ export default function PlanCalendar({ userId }) {
           <p>{selected.description}</p>
           <p className="hint">
             {[
-              selected.targetDistanceKm != null && `${selected.targetDistanceKm} km`,
-              selected.targetElevationM != null && `${selected.targetElevationM} m vert`,
+              selected.targetDistanceMi != null && `${selected.targetDistanceMi} mi`,
+              selected.targetElevationFt != null && `${selected.targetElevationFt.toLocaleString()} ft vert`,
               selected.targetDurationMin != null && `${selected.targetDurationMin} min`,
             ].filter(Boolean).join(' · ') || 'No targets'}
             {' · status: '}{selected.status}

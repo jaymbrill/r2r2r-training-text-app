@@ -4,8 +4,8 @@ const { sendSms } = require('./twilioService');
 const MIN_MATCH_MINUTES = 20; // ignore tiny activities when matching workouts
 
 function encouragementText(user, workout, activity) {
-  const km = (activity.distance_m / 1000).toFixed(1);
-  const vert = Math.round(activity.elevation_gain_m);
+  const miles = (activity.distance_m / 1609.344).toFixed(1);
+  const vertFt = Math.round(activity.elevation_gain_m * 3.28084);
   const hours = (activity.moving_time_s / 3600).toFixed(1);
   const firstName = user.name.split(' ')[0];
 
@@ -17,7 +17,7 @@ function encouragementText(user, workout, activity) {
   ];
   const opener = openers[workout.id % openers.length];
 
-  const stats = `${km} km, ${vert} m of vert in ${hours}h`;
+  const stats = `${miles} mi, ${vertFt} ft of vert in ${hours}h`;
   const daysToGo = user.goal_date
     ? Math.max(0, Math.round((new Date(user.goal_date) - Date.now()) / (24 * 3600 * 1000)))
     : null;

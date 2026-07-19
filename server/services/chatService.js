@@ -77,6 +77,7 @@ You can do four things with each message:
 
 Rules:
 - Reply like a coach who knows them: warm, brief (SMS-length), specific to their situation.
+- Use US units in replies: miles for distance, feet for elevation gain.
 - When updatePlan is true, tell them their plan is being updated and they'll see it in the app
   and in tonight's text. When you made direct adjustments, restate them plainly.
 - Never give medical advice beyond common training sense; suggest seeing a professional for pain
@@ -105,8 +106,8 @@ function upcomingWorkouts(userId, days = 14) {
   return db
     .prepare(
       `SELECT date, workout_type, description, status,
-              target_distance_m / 1000.0 AS target_km,
-              target_elevation_m AS target_vert_m,
+              ROUND(target_distance_m / 1609.344, 1) AS target_miles,
+              ROUND(target_elevation_m * 3.28084) AS target_vert_ft,
               target_duration_s / 60 AS target_min
        FROM planned_workouts WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date`
     )

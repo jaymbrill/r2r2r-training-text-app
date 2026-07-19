@@ -31,7 +31,7 @@ function weeklySummaryText(userId) {
   } else {
     parts.push('Week recap:');
   }
-  parts.push(`${load.acute7d.hours}h, ${load.acute7d.distanceKm} km, ${load.acute7d.elevationM} m vert.`);
+  parts.push(`${load.acute7d.hours}h, ${load.acute7d.distanceMi} mi, ${load.acute7d.elevationFt} ft vert.`);
   if (c.streak >= 3) parts.push(`${c.streak} workouts in a row — keep the chain going!`);
   if (load.rampRatio != null) {
     parts.push(

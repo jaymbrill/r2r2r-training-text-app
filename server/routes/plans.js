@@ -12,8 +12,8 @@ function serializeWorkout(row) {
     date: row.date,
     workoutType: row.workout_type,
     description: row.description,
-    targetDistanceKm: row.target_distance_m != null ? +(row.target_distance_m / 1000).toFixed(1) : null,
-    targetElevationM: row.target_elevation_m,
+    targetDistanceMi: row.target_distance_m != null ? +(row.target_distance_m / 1609.344).toFixed(1) : null,
+    targetElevationFt: row.target_elevation_m != null ? Math.round(row.target_elevation_m * 3.28084) : null,
     targetDurationMin: row.target_duration_s != null ? Math.round(row.target_duration_s / 60) : null,
     status: row.status,
   };
@@ -60,7 +60,7 @@ router.patch('/workouts/:id', (req, res) => {
   const workout = db.prepare('SELECT * FROM planned_workouts WHERE id = ?').get(req.params.id);
   if (!workout) return res.status(404).json({ errors: ['Workout not found'] });
 
-  const { status, description, targetDistanceKm, targetElevationM, targetDurationMin, date } = req.body;
+  const { status, description, targetDistanceMi, targetElevationFt, targetDurationMin, date } = req.body;
   if (status && !['planned', 'completed', 'skipped', 'modified'].includes(status)) {
     return res.status(400).json({ errors: ['Invalid status'] });
   }
@@ -69,7 +69,7 @@ router.patch('/workouts/:id', (req, res) => {
   }
 
   const detailsChanged =
-    description !== undefined || targetDistanceKm !== undefined || targetElevationM !== undefined ||
+    description !== undefined || targetDistanceMi !== undefined || targetElevationFt !== undefined ||
     targetDurationMin !== undefined || date !== undefined;
 
   db.prepare(
@@ -84,8 +84,8 @@ router.patch('/workouts/:id', (req, res) => {
   ).run(
     detailsChanged && !status ? 'modified' : status ?? null,
     description ?? null,
-    targetDistanceKm != null ? targetDistanceKm * 1000 : null,
-    targetElevationM ?? null,
+    targetDistanceMi != null ? targetDistanceMi * 1609.344 : null,
+    targetElevationFt != null ? targetElevationFt / 3.28084 : null,
     targetDurationMin != null ? targetDurationMin * 60 : null,
     date ?? null,
     req.params.id

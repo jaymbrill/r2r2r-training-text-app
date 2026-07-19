@@ -79,12 +79,12 @@ export default function StravaSection({ userId }) {
             <div className="load-grid">
               <div className="load-card">
                 <h4>Last 7 days</h4>
-                <p>{load.acute7d.hours}h · {load.acute7d.distanceKm} km · {load.acute7d.elevationM} m vert</p>
+                <p>{load.acute7d.hours}h · {load.acute7d.distanceMi} mi · {load.acute7d.elevationFt.toLocaleString()} ft vert</p>
               </div>
               <div className="load-card">
                 <h4>Last 28 days</h4>
                 <p>
-                  {load.chronic28d.hours}h · {load.chronic28d.distanceKm} km · {load.chronic28d.elevationM} m vert
+                  {load.chronic28d.hours}h · {load.chronic28d.distanceMi} mi · {load.chronic28d.elevationFt.toLocaleString()} ft vert
                   <br />
                   avg {load.chronic28d.weeklyAvgHours}h/week
                 </p>
@@ -107,8 +107,8 @@ export default function StravaSection({ userId }) {
               <div className="load-card">
                 <h4>Biggest effort (28d)</h4>
                 <p>
-                  {load.biggest28d.longestHours}h · {load.biggest28d.longestKm} km ·{' '}
-                  {load.biggest28d.mostElevationM} m vert
+                  {load.biggest28d.longestHours}h · {load.biggest28d.longestMi} mi ·{' '}
+                  {load.biggest28d.mostElevationFt.toLocaleString()} ft vert
                 </p>
               </div>
             </div>

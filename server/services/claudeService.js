@@ -23,11 +23,11 @@ const planSchema = {
             enum: ['run', 'long_run', 'hike', 'vert', 'back_to_back', 'cross_train', 'strength', 'rest'],
           },
           description: { type: 'string', description: 'One or two sentences the athlete reads' },
-          targetDistanceKm: { anyOf: [{ type: 'number' }, { type: 'null' }] },
-          targetElevationM: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+          targetDistanceMi: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'miles' },
+          targetElevationFt: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'vertical feet' },
           targetDurationMin: { anyOf: [{ type: 'number' }, { type: 'null' }] },
         },
-        required: ['date', 'workoutType', 'description', 'targetDistanceKm', 'targetElevationM', 'targetDurationMin'],
+        required: ['date', 'workoutType', 'description', 'targetDistanceMi', 'targetElevationFt', 'targetDurationMin'],
         additionalProperties: false,
       },
     },
@@ -53,7 +53,8 @@ Principles:
 - Honor all listed constraints (injuries, fatigue, travel, manual edits). Never schedule hard
   efforts on days the athlete said they are unavailable.
 - Include genuine rest days. Descending strength (quads) and hiking with poles are fair game.
-- The SMS should be encouraging and specific, like a coach texting an athlete they know.`;
+- The SMS should be encouraging and specific, like a coach texting an athlete they know.
+- Use US units everywhere the athlete will read: miles for distance, feet for elevation gain.`;
 
 function buildContext(userId, startDate) {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -153,7 +154,7 @@ function generateFallback(context, startDate) {
     const dow = dayKeys[new Date(`${date}T00:00:00Z`).getUTCDay()];
     const hours = availability[dow] || 0;
     if (!hours) {
-      return { date, workoutType: 'rest', description: 'Rest day. Recover well.', targetDistanceKm: null, targetElevationM: null, targetDurationMin: null };
+      return { date, workoutType: 'rest', description: 'Rest day. Recover well.', targetDistanceMi: null, targetElevationFt: null, targetDurationMin: null };
     }
     const long = hours >= 3;
     return {
@@ -162,8 +163,8 @@ function generateFallback(context, startDate) {
       description: long
         ? `Long effort on hilly trails, about ${hours} hours. Hike the climbs, run the flats.`
         : `Easy run with some hills, about ${Math.round(hours * 60)} minutes.`,
-      targetDistanceKm: long ? hours * 7 : hours * 9,
-      targetElevationM: long ? hours * 300 : hours * 150,
+      targetDistanceMi: long ? +(hours * 4.5).toFixed(1) : +(hours * 5.5).toFixed(1),
+      targetElevationFt: long ? Math.round(hours * 1000) : Math.round(hours * 500),
       targetDurationMin: Math.round(hours * 60),
     };
   });
@@ -215,8 +216,8 @@ async function generatePlan(userId, { startDate } = {}) {
         w.date,
         w.workoutType,
         w.description,
-        w.targetDistanceKm != null ? w.targetDistanceKm * 1000 : null,
-        w.targetElevationM,
+        w.targetDistanceMi != null ? w.targetDistanceMi * 1609.344 : null,
+        w.targetElevationFt != null ? w.targetElevationFt / 3.28084 : null,
         w.targetDurationMin != null ? w.targetDurationMin * 60 : null
       );
     }

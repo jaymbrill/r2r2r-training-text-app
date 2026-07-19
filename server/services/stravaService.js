@@ -168,25 +168,28 @@ function computeTrainingLoad(userId, now = new Date()) {
     )
     .get(userId, new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000).toISOString());
 
+  const mi = (m) => +(m / 1609.344).toFixed(1);
+  const ft = (m) => Math.round(m * 3.28084);
+
   return {
     acute7d: {
       activities: acute.count,
-      distanceKm: +(acute.distance_m / 1000).toFixed(1),
-      elevationM: Math.round(acute.elevation_m),
+      distanceMi: mi(acute.distance_m),
+      elevationFt: ft(acute.elevation_m),
       hours: +(acute.moving_time_s / 3600).toFixed(1),
     },
     chronic28d: {
       activities: chronic.count,
-      distanceKm: +(chronic.distance_m / 1000).toFixed(1),
-      elevationM: Math.round(chronic.elevation_m),
+      distanceMi: mi(chronic.distance_m),
+      elevationFt: ft(chronic.elevation_m),
       hours: +(chronic.moving_time_s / 3600).toFixed(1),
       weeklyAvgHours: +(chronicWeeklyTime / 3600).toFixed(1),
     },
     rampRatio: ramp === null ? null : +ramp.toFixed(2),
     biggest28d: {
       longestHours: +((longest.moving_time_s || 0) / 3600).toFixed(1),
-      longestKm: +((longest.distance_m || 0) / 1000).toFixed(1),
-      mostElevationM: Math.round(longest.elevation_m || 0),
+      longestMi: mi(longest.distance_m || 0),
+      mostElevationFt: ft(longest.elevation_m || 0),
     },
   };
 }
