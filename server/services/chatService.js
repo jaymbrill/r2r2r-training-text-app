@@ -118,9 +118,9 @@ function upcomingWorkouts(userId, days = 14) {
  * Apply the coach's direct workout adjustments. Each applied change is also
  * recorded as a constraint so later regenerations respect it.
  */
-function applyAdjustments(userId, adjustments) {
+function applyAdjustments(userId, adjustments, source = 'sms') {
   const insertConstraint = db.prepare(
-    `INSERT INTO constraints (user_id, kind, description, start_date, end_date, source) VALUES (?, 'manual_edit', ?, ?, ?, 'sms')`
+    `INSERT INTO constraints (user_id, kind, description, start_date, end_date, source) VALUES (?, 'manual_edit', ?, ?, ?, ?)`
   );
   let applied = 0;
   for (const adj of adjustments || []) {
@@ -131,15 +131,16 @@ function applyAdjustments(userId, adjustments) {
 
     if (adj.action === 'skip') {
       db.prepare(`UPDATE planned_workouts SET status = 'skipped' WHERE id = ?`).run(workout.id);
-      insertConstraint.run(userId, `Athlete skipped the ${adj.date} workout via text`, adj.date, adj.date);
+      insertConstraint.run(userId, `Athlete skipped the ${adj.date} workout via coach chat`, adj.date, adj.date, source);
       applied += 1;
     } else if (adj.action === 'move' && adj.newDate && /^\d{4}-\d{2}-\d{2}$/.test(adj.newDate)) {
       db.prepare(`UPDATE planned_workouts SET date = ?, status = 'modified' WHERE id = ?`).run(adj.newDate, workout.id);
       insertConstraint.run(
         userId,
-        `Athlete moved the ${adj.date} workout to ${adj.newDate} via text`,
+        `Athlete moved the ${adj.date} workout to ${adj.newDate} via coach chat`,
         adj.date,
-        adj.newDate
+        adj.newDate,
+        source
       );
       applied += 1;
     } else if (adj.action === 'modify' && adj.description) {
@@ -149,9 +150,10 @@ function applyAdjustments(userId, adjustments) {
       );
       insertConstraint.run(
         userId,
-        `Athlete adjusted the ${adj.date} workout via text: ${adj.description}`,
+        `Athlete adjusted the ${adj.date} workout via coach chat: ${adj.description}`,
         adj.date,
-        adj.date
+        adj.date,
+        source
       );
       applied += 1;
     }
@@ -204,15 +206,13 @@ function chatFallback(inboundBody) {
 }
 
 /**
- * Handle an inbound SMS: record it, get the coach's reply, apply any
- * constraints/adjustments, regenerate the plan when needed.
- * Returns { userId, reply } — the caller is responsible for delivering
- * (and thereby recording) the outbound reply, e.g. via twilioService.sendSms.
+ * One coaching turn, shared by SMS and web chat: record the inbound
+ * message, get the coach's reply, apply constraints/adjustments, and
+ * regenerate the plan when needed. The outbound reply is NOT recorded
+ * here — the caller delivers it (sendSms records for SMS; the web
+ * route records directly).
  */
-async function handleInboundSms(phone, body) {
-  const user = findUserByPhone(phone);
-  if (!user) return null; // unknown sender: caller decides what to do
-
+async function coachTurn(user, body, source = 'sms') {
   db.prepare(`INSERT INTO messages (user_id, direction, body) VALUES (?, 'inbound', ?)`).run(user.id, body);
 
   const result = process.env.ANTHROPIC_API_KEY
@@ -220,20 +220,32 @@ async function handleInboundSms(phone, body) {
     : chatFallback(body);
 
   const insertConstraint = db.prepare(
-    `INSERT INTO constraints (user_id, kind, description, start_date, end_date, source) VALUES (?, ?, ?, ?, ?, 'sms')`
+    `INSERT INTO constraints (user_id, kind, description, start_date, end_date, source) VALUES (?, ?, ?, ?, ?, ?)`
   );
   for (const c of result.constraints || []) {
-    insertConstraint.run(user.id, c.kind, c.description, c.startDate || null, c.endDate || null);
+    insertConstraint.run(user.id, c.kind, c.description, c.startDate || null, c.endDate || null, source);
   }
 
-  applyAdjustments(user.id, result.adjustments);
+  const adjusted = applyAdjustments(user.id, result.adjustments, source);
 
   if (result.updatePlan) {
     // Regenerate in the background; the reply already tells the athlete
-    generatePlan(user.id).catch((err) => console.error('Plan regen after SMS failed:', err.message));
+    generatePlan(user.id).catch((err) => console.error('Plan regen after chat failed:', err.message));
   }
 
-  return { userId: user.id, reply: result.reply };
+  return {
+    userId: user.id,
+    reply: result.reply,
+    adjustmentsApplied: adjusted,
+    planRegenerating: !!result.updatePlan,
+  };
 }
 
-module.exports = { handleInboundSms, findUserByPhone, applyAdjustments };
+/** SMS entry point: resolve the sender to a user first. */
+async function handleInboundSms(phone, body) {
+  const user = findUserByPhone(phone);
+  if (!user) return null; // unknown sender: caller decides what to do
+  return coachTurn(user, body, 'sms');
+}
+
+module.exports = { handleInboundSms, findUserByPhone, applyAdjustments, coachTurn };

@@ -4,6 +4,7 @@ import ProfileForm from './ProfileForm'
 import StravaSection from './StravaSection'
 import PlanCalendar from './PlanCalendar'
 import CanyonHero from './CanyonHero'
+import CoachChat from './CoachChat'
 import { TermsPage, PrivacyPage } from './LegalPages'
 import './App.css'
 
@@ -57,6 +58,7 @@ function Home() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
+  const [planRefresh, setPlanRefresh] = useState(0)
 
   useEffect(() => {
     const userId = localStorage.getItem('userId')
@@ -167,7 +169,8 @@ function Home() {
           <button className="link danger" onClick={handleDeleteAccount}>Delete my account</button>
         </section>
         <StravaSection userId={user.id} />
-        <PlanCalendar userId={user.id} />
+        <CoachChat userId={user.id} onPlanChanged={() => setPlanRefresh((n) => n + 1)} />
+        <PlanCalendar userId={user.id} refreshKey={planRefresh} />
         <Footer />
       </main>
     </>

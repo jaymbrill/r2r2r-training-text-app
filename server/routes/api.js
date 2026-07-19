@@ -12,5 +12,6 @@ router.use('/users', usersRouter);
 router.use('/strava', stravaRouter);
 router.use('/plans', require('./plans'));
 router.use('/sms', require('./sms'));
+router.use('/chat', require('./chat'));
 
 module.exports = router;

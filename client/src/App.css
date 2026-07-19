@@ -331,7 +331,7 @@ a.button {
 }
 
 .calendar-cell {
-  min-height: 62px;
+  min-height: 76px;
   background: #fffdf8;
   border: 1px solid var(--sand-line);
   border-radius: 8px;
@@ -417,6 +417,93 @@ a.button {
 
 .workout-actions button {
   margin-right: 0.6rem;
+}
+
+.cell-stats {
+  font-size: 0.65rem;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+
+/* ---------- Coach chat ---------- */
+
+.chat-section {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--sand-line);
+}
+
+.chat-thread {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #fffdf8;
+  border: 1px solid var(--sand-line);
+  border-radius: 12px;
+  padding: 0.9rem;
+  margin: 0.75rem 0;
+}
+
+.chat-empty {
+  color: var(--ink-soft);
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.chat-bubble {
+  max-width: 82%;
+  padding: 0.5rem 0.8rem;
+  border-radius: 14px;
+  line-height: 1.45;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+}
+
+.chat-bubble.mine {
+  align-self: flex-end;
+  background: var(--rust);
+  color: #fff8ef;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble.coach {
+  align-self: flex-start;
+  background: var(--sand);
+  color: var(--ink);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-bubble.typing {
+  color: var(--ink-soft);
+  letter-spacing: 0.2em;
+}
+
+.chat-notice {
+  font-size: 0.85rem;
+  color: var(--sage);
+  font-weight: 600;
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-input input {
+  flex: 1;
+  font: inherit;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--sand-line);
+  border-radius: 999px;
+  background: #fffdf8;
+  color: var(--ink);
+}
+
+.chat-input input:focus {
+  outline: 2px solid var(--rust);
+  outline-offset: 1px;
 }
 
 /* ---------- Footer & legal ---------- */

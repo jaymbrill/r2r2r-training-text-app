@@ -18,7 +18,7 @@ function monthRange(year, month) {
   return [first.toISOString().slice(0, 10), last.toISOString().slice(0, 10)]
 }
 
-export default function PlanCalendar({ userId }) {
+export default function PlanCalendar({ userId, refreshKey = 0 }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-based
@@ -39,7 +39,7 @@ export default function PlanCalendar({ userId }) {
     } catch (err) {
       setError(err.message)
     }
-  }, [userId, year, month])
+  }, [userId, year, month, refreshKey])
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -151,10 +151,23 @@ export default function PlanCalendar({ userId }) {
             >
               <span className="day-number">{cell.day}</span>
               {cell.workout && (
-                <span className={`workout-chip ${cell.workout.workoutType} ${cell.workout.status}`}>
-                  {TYPE_LABELS[cell.workout.workoutType] || cell.workout.workoutType}
-                  {cell.workout.status !== 'planned' && ` · ${cell.workout.status}`}
-                </span>
+                <>
+                  <span className={`workout-chip ${cell.workout.workoutType} ${cell.workout.status}`}>
+                    {TYPE_LABELS[cell.workout.workoutType] || cell.workout.workoutType}
+                    {cell.workout.status !== 'planned' && ` · ${cell.workout.status}`}
+                  </span>
+                  {(cell.workout.targetDistanceMi != null || cell.workout.targetElevationFt != null) && (
+                    <span className="cell-stats">
+                      {[
+                        cell.workout.targetDistanceMi != null && `${cell.workout.targetDistanceMi} mi`,
+                        cell.workout.targetElevationFt != null &&
+                          `${cell.workout.targetElevationFt >= 1000
+                            ? `${(cell.workout.targetElevationFt / 1000).toFixed(1)}k`
+                            : cell.workout.targetElevationFt} ft`,
+                      ].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           )
