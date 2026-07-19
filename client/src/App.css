@@ -1,11 +1,82 @@
 main {
-  max-width: 560px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem;
+  padding: 2rem 1.25rem 2.5rem;
 }
 
+/* ---------- Hero ---------- */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--sky);
+}
+
+.hero-art {
+  display: block;
+  width: 100%;
+  height: 340px;
+}
+
+.hero-compact .hero-art {
+  height: 180px;
+}
+
+.hero-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  padding: 2.25rem 1.25rem 0;
+  pointer-events: none;
+}
+
+.hero-compact .hero-text {
+  padding-top: 1.1rem;
+}
+
+.hero-kicker {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--canyon);
+  opacity: 0.75;
+}
+
+.hero-text h1 {
+  margin: 0.35rem 0 0;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  line-height: 1.05;
+  color: var(--canyon);
+}
+
+.hero-compact .hero-text h1 {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+}
+
+.hero-text p {
+  margin: 0.6rem auto 0;
+  max-width: 34rem;
+  font-size: 0.95rem;
+  color: #6b3a22;
+  font-style: italic;
+  font-family: var(--font-display);
+}
+
+.hero-compact .hero-text p {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+}
+
+/* ---------- Forms ---------- */
+
 .tagline {
-  color: #666;
+  color: var(--ink-soft);
   margin-bottom: 2rem;
 }
 
@@ -20,20 +91,36 @@ main {
   flex-direction: column;
   gap: 0.3rem;
   font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .profile-form input,
 .profile-form select {
   font: inherit;
-  padding: 0.5rem;
-  border: 1px solid #bbb;
-  border-radius: 6px;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--sand-line);
+  border-radius: 8px;
+  background: #fffdf8;
+  color: var(--ink);
+}
+
+.profile-form input:focus,
+.profile-form select:focus {
+  outline: 2px solid var(--rust);
+  outline-offset: 1px;
+  border-color: var(--rust);
 }
 
 .profile-form fieldset {
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  border: 1px solid var(--sand-line);
+  border-radius: 10px;
   padding: 0.75rem 1rem;
+  background: #fffdf8;
+}
+
+.profile-form legend {
+  font-family: var(--font-display);
+  padding: 0 0.4rem;
 }
 
 .availability-row {
@@ -48,15 +135,23 @@ main {
   width: 5rem;
 }
 
+/* ---------- Buttons ---------- */
+
 button {
   font: inherit;
   font-weight: 600;
-  padding: 0.6rem 1.2rem;
+  padding: 0.6rem 1.3rem;
   border: none;
-  border-radius: 8px;
-  background: #b3552e;
-  color: #fff;
+  border-radius: 999px;
+  background: var(--rust);
+  color: #fff8ef;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(95, 46, 29, 0.25);
+  transition: background 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--rust-deep);
 }
 
 button:disabled {
@@ -66,20 +161,44 @@ button:disabled {
 
 button.link {
   background: none;
-  color: #b3552e;
+  box-shadow: none;
+  color: var(--rust);
   padding: 0.4rem 0;
   text-decoration: underline;
+  border-radius: 0;
 }
 
 button.link.danger {
-  color: #b00020;
+  color: #a02015;
+}
+
+a.button {
+  display: inline-block;
+  font-weight: 600;
+  padding: 0.6rem 1.3rem;
+  border-radius: 999px;
+  background: #fc4c02; /* Strava orange */
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(95, 46, 29, 0.25);
 }
 
 .error {
-  color: #b00020;
-  background: rgba(176, 0, 32, 0.08);
+  color: #a02015;
+  background: rgba(160, 32, 21, 0.08);
   padding: 0.6rem 0.8rem;
-  border-radius: 6px;
+  border-radius: 8px;
+}
+
+/* ---------- Cards / sections ---------- */
+
+.profile-card,
+.workout-detail {
+  background: #fffdf8;
+  border: 1px solid var(--sand-line);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(95, 46, 29, 0.07);
 }
 
 .profile-card dl {
@@ -90,6 +209,7 @@ button.link.danger {
 
 .profile-card dt {
   font-weight: 600;
+  color: var(--ink-soft);
 }
 
 .profile-card dd {
@@ -101,67 +221,14 @@ button.link.danger {
   margin-top: 1rem;
 }
 
-.coming-soon {
+.strava-section,
+.plan-section {
   margin-top: 2.5rem;
-  color: #777;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--sand-line);
 }
 
-.site-footer {
-  margin-top: 3rem;
-  padding-top: 1rem;
-  border-top: 1px solid #ddd;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: #888;
-}
-
-.site-footer a {
-  color: #888;
-}
-
-.consent-note {
-  margin-top: 1rem;
-  font-size: 0.8rem;
-  color: #888;
-}
-
-.legal-page h1 {
-  margin-bottom: 0.25rem;
-}
-
-.legal-updated {
-  color: #888;
-  font-size: 0.85rem;
-  margin-top: 0;
-}
-
-.legal-page h2 {
-  margin-top: 1.75rem;
-  font-size: 1.05rem;
-}
-
-.legal-page p,
-.legal-page li {
-  line-height: 1.55;
-}
-
-.strava-section {
-  margin-top: 2.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #ddd;
-}
-
-a.button {
-  display: inline-block;
-  font-weight: 600;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  background: #fc4c02; /* Strava orange */
-  color: #fff;
-  text-decoration: none;
-}
+/* ---------- Training load ---------- */
 
 .load-grid {
   display: grid;
@@ -171,17 +238,20 @@ a.button {
 }
 
 .load-card {
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  background: #fffdf8;
+  border: 1px solid var(--sand-line);
+  border-radius: 10px;
   padding: 0.6rem 0.8rem;
 }
 
 .load-card h4 {
   margin: 0 0 0.3rem;
-  font-size: 0.85rem;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #888;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
 }
 
 .load-card p {
@@ -189,30 +259,23 @@ a.button {
 }
 
 .hint {
-  color: #888;
+  color: var(--ink-soft);
 }
 
 .strava-section button {
   margin-right: 0.75rem;
 }
 
-.plan-section {
-  margin-top: 2.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #ddd;
-}
-
-.plan-summary {
-  margin: 0.5rem 0 1rem;
-}
+/* ---------- Compliance stats ---------- */
 
 .compliance-row {
   display: flex;
-  gap: 1.5rem;
-  margin-top: 1rem;
-  padding: 0.6rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  gap: 1.75rem;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1.1rem;
+  background: var(--sand);
+  border: 1px solid var(--sand-line);
+  border-radius: 12px;
 }
 
 .compliance-row .stat {
@@ -221,39 +284,57 @@ a.button {
 }
 
 .compliance-row .stat strong {
-  font-size: 1.15rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--canyon);
 }
 
 .compliance-row .stat span {
-  font-size: 0.75rem;
-  color: #888;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+/* ---------- Calendar ---------- */
+
+.plan-summary {
+  margin: 0.5rem 0 1rem;
 }
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 1.25rem 0 0.5rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.calendar-header strong {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
+  gap: 4px;
 }
 
 .calendar-dow {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #888;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
   text-align: center;
   padding: 0.25rem 0;
+  text-transform: uppercase;
 }
 
 .calendar-cell {
   min-height: 62px;
-  border: 1px solid #e2e2e2;
-  border-radius: 6px;
+  background: #fffdf8;
+  border: 1px solid var(--sand-line);
+  border-radius: 8px;
   padding: 0.25rem;
   font-size: 0.75rem;
   cursor: default;
@@ -266,45 +347,55 @@ a.button {
   cursor: pointer;
 }
 
+.calendar-cell:has(.workout-chip):hover {
+  border-color: var(--rust);
+}
+
 .calendar-cell.empty {
   border: none;
+  background: none;
 }
 
 .calendar-cell.today {
-  border-color: #b3552e;
+  border-color: var(--rust);
   border-width: 2px;
 }
 
 .calendar-cell.selected {
-  background: rgba(179, 85, 46, 0.08);
+  background: rgba(180, 85, 45, 0.09);
 }
 
 .day-number {
-  color: #999;
+  color: var(--ink-soft);
 }
 
 .workout-chip {
-  border-radius: 4px;
-  padding: 1px 4px;
-  background: #e8f0e8;
-  color: #2c5f2d;
+  border-radius: 5px;
+  padding: 2px 5px;
+  background: #e5ead9;
+  color: #465438;
   line-height: 1.3;
 }
 
 .workout-chip.rest {
-  background: #f0f0f0;
-  color: #777;
+  background: var(--sand);
+  color: var(--ink-soft);
 }
 
 .workout-chip.long_run,
 .workout-chip.back_to_back {
-  background: #fdeee5;
-  color: #a34a24;
+  background: #f6dfc9;
+  color: #8e3f1f;
 }
 
 .workout-chip.vert {
-  background: #ece5fd;
-  color: #4a3a8a;
+  background: #e7dcd2;
+  color: #5f2e1d;
+}
+
+.workout-chip.hike {
+  background: #ece4cf;
+  color: #6b5b2e;
 }
 
 .workout-chip.completed {
@@ -318,9 +409,6 @@ a.button {
 
 .workout-detail {
   margin-top: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
 }
 
 .workout-detail h4 {
@@ -329,4 +417,47 @@ a.button {
 
 .workout-actions button {
   margin-right: 0.6rem;
+}
+
+/* ---------- Footer & legal ---------- */
+
+.site-footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--sand-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.site-footer a {
+  color: var(--ink-soft);
+}
+
+.consent-note {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.legal-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.legal-updated {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  margin-top: 0;
+}
+
+.legal-page h2 {
+  margin-top: 1.75rem;
+  font-size: 1.05rem;
+}
+
+.legal-page p,
+.legal-page li {
+  line-height: 1.55;
 }

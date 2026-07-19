@@ -3,7 +3,6 @@ const APP_NAME = 'R2R2R Training'
 export function TermsPage() {
   return (
     <div className="legal-page">
-      <h1>Terms and Conditions</h1>
       <p className="legal-updated">Last updated: July 19, 2026</p>
 
       <p>
@@ -107,7 +106,6 @@ export function TermsPage() {
 export function PrivacyPage() {
   return (
     <div className="legal-page">
-      <h1>Privacy Statement</h1>
       <p className="legal-updated">Last updated: July 19, 2026</p>
 
       <p>
