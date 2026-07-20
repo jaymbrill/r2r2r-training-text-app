@@ -95,12 +95,25 @@ function buildContext(userId, startDate) {
   const recentMessages = db
     .prepare(
       `SELECT direction, body, created_at FROM messages
-       WHERE user_id = ? ORDER BY created_at DESC LIMIT 10`
+       WHERE user_id = ? ORDER BY direction DESC, created_at DESC LIMIT 10`
     )
     .all(userId)
     .reverse();
 
-  return { user, load, constraints, recentMessages };
+  // Committed peak/mountain days the athlete has locked in. These are FIXED —
+  // preserved across regenerations and planned around, never overwritten.
+  const committedPeaks = db
+    .prepare(
+      `SELECT date, workout_type, description,
+              ROUND(target_distance_m / 1609.344, 1) AS target_miles,
+              ROUND(target_elevation_m * 3.28084) AS target_vert_ft
+       FROM planned_workouts
+       WHERE user_id = ? AND date >= ? AND workout_type = 'peak_climb'
+       ORDER BY date`
+    )
+    .all(userId, startDate);
+
+  return { user, load, constraints, recentMessages, committedPeaks };
 }
 
 function datesForPlan(startDate, days) {
@@ -115,7 +128,7 @@ function datesForPlan(startDate, days) {
 
 async function generateWithClaude(context, startDate, planDays) {
   const client = new Anthropic();
-  const { user, load, constraints, recentMessages } = context;
+  const { user, load, constraints, recentMessages, committedPeaks } = context;
 
   const input = {
     today: new Date().toISOString().slice(0, 10),
@@ -131,6 +144,7 @@ async function generateWithClaude(context, startDate, planDays) {
     },
     trainingLoad: load,
     activeConstraints: constraints,
+    committedPeakDays: committedPeaks,
     recentSmsConversation: recentMessages,
   };
 
@@ -144,7 +158,7 @@ async function generateWithClaude(context, startDate, planDays) {
     messages: [
       {
         role: 'user',
-        content: `Build the complete ${planDays}-day training plan starting ${startDate} and running through race day ${user.goal_date}. Exactly one entry per day (use type "rest" for rest days). Periodize across the whole block and place peak_climb / big-mountain days as described. Athlete data:\n${JSON.stringify(input, null, 2)}`,
+        content: `Build the complete ${planDays}-day training plan starting ${startDate} and running through race day ${user.goal_date}. Exactly one entry per day (use type "rest" for rest days). Periodize across the whole block and place peak_climb / big-mountain days as described.\n\nIMPORTANT: committedPeakDays are FIXED commitments the athlete has already locked in. Do NOT move, remove, or rename them. Keep each on its exact date with its type as peak_climb, and build the surrounding days around them (taper into them, recover after them). You may refine their mileage/vert targets only if clearly needed. Athlete data:\n${JSON.stringify(input, null, 2)}`,
       },
     ],
   });
@@ -222,17 +236,37 @@ async function generatePlan(userId, { startDate } = {}) {
       .run(userId, model, plan.summary);
     const planId = planRow.lastInsertRowid;
 
-    // Replace future workouts that weren't completed/skipped. Manual edits are
-    // preserved as constraints, which the new plan already accounts for.
+    // Replace future workouts that weren't completed/skipped — but NEVER touch
+    // committed peak_climb days. Those are locked-in commitments (14ers, big
+    // mountains); preserve the rows and reattach them to the new plan.
     db.prepare(
-      `DELETE FROM planned_workouts WHERE user_id = ? AND date >= ? AND status IN ('planned', 'modified')`
+      `DELETE FROM planned_workouts
+       WHERE user_id = ? AND date >= ? AND status IN ('planned', 'modified')
+       AND workout_type != 'peak_climb'`
     ).run(userId, start);
+    db.prepare(
+      `UPDATE planned_workouts SET plan_id = ?
+       WHERE user_id = ? AND date >= ? AND workout_type = 'peak_climb'`
+    ).run(planId, userId, start);
+
+    // Dates already occupied by a preserved peak — don't double-book them.
+    const peakDates = new Set(
+      db
+        .prepare(
+          `SELECT date FROM planned_workouts WHERE user_id = ? AND date >= ? AND workout_type = 'peak_climb'`
+        )
+        .all(userId, start)
+        .map((r) => r.date)
+    );
 
     const insertWorkout = db.prepare(
       `INSERT INTO planned_workouts (plan_id, user_id, date, workout_type, description, target_distance_m, target_elevation_m, target_duration_s)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     for (const w of plan.workouts) {
+      // Skip a generated workout that collides with a committed peak day, and
+      // don't let the model's own peak entries duplicate a preserved one.
+      if (peakDates.has(w.date)) continue;
       insertWorkout.run(
         planId,
         userId,
