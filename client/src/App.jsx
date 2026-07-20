@@ -17,6 +17,8 @@ function Footer() {
       <a href="#/privacy">Privacy Statement</a>
       <span aria-hidden="true">·</span>
       <span>Msg &amp; data rates may apply. Reply STOP to opt out.</span>
+      <span aria-hidden="true">·</span>
+      <a href="#/admin" className="admin-link">Admin</a>
     </footer>
   )
 }
