@@ -644,3 +644,89 @@ a.button {
 .legal-page li {
   line-height: 1.55;
 }
+
+/* ---------- Admin dashboard ---------- */
+
+.admin-login {
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem;
+}
+
+.admin-dashboard {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1.25rem;
+}
+
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.admin-stat {
+  background: #fffdf8;
+  border: 1px solid var(--sand-line);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(95, 46, 29, 0.07);
+}
+
+.admin-stat strong {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  color: var(--canyon);
+  line-height: 1.1;
+}
+
+.admin-stat span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  margin-top: 0.2rem;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--sand-line);
+  border-radius: 12px;
+  background: #fffdf8;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--sand-line);
+}
+
+.admin-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  background: var(--sand);
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}

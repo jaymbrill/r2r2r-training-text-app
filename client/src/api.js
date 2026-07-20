@@ -32,4 +32,5 @@ export const api = {
   chatHistory: (id) => request(`/chat/${id}/messages`),
   chatSend: (id, message) =>
     request(`/chat/${id}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
+  adminStats: (password) => request(`/admin/stats`, { headers: { 'X-Admin-Password': password } }),
 };

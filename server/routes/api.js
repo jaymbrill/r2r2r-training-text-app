@@ -13,5 +13,6 @@ router.use('/strava', stravaRouter);
 router.use('/plans', require('./plans'));
 router.use('/sms', require('./sms'));
 router.use('/chat', require('./chat'));
+router.use('/admin', require('./admin'));
 
 module.exports = router;

@@ -6,6 +6,7 @@ import PlanCalendar from './PlanCalendar'
 import CanyonHero from './CanyonHero'
 import CoachChat from './CoachChat'
 import { TermsPage, PrivacyPage } from './LegalPages'
+import AdminDashboard from './AdminDashboard'
 import './App.css'
 
 function Footer() {
@@ -48,6 +49,14 @@ export default function App() {
       <>
         <CanyonHero compact title="Privacy Statement" />
         <main><PrivacyPage /><Footer /></main>
+      </>
+    )
+  }
+  if (hash === '#/admin') {
+    return (
+      <>
+        <CanyonHero compact title="Admin" />
+        <AdminDashboard />
       </>
     )
   }
