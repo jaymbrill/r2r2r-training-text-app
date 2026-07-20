@@ -33,15 +33,27 @@ const replySchema = {
       items: {
         type: 'object',
         properties: {
-          date: { type: 'string', description: 'YYYY-MM-DD of the workout to adjust' },
-          action: { type: 'string', enum: ['skip', 'move', 'modify'] },
+          date: { type: 'string', description: 'YYYY-MM-DD of the day to adjust or add' },
+          action: { type: 'string', enum: ['skip', 'move', 'modify', 'add'] },
           newDate: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'YYYY-MM-DD, required for move' },
+          workoutType: {
+            anyOf: [
+              {
+                type: 'string',
+                enum: ['run', 'long_run', 'hike', 'vert', 'peak_climb', 'back_to_back', 'cross_train', 'strength', 'rest'],
+              },
+              { type: 'null' },
+            ],
+            description: 'Workout type, for add (use peak_climb for 14ers / big mountains)',
+          },
           description: {
             anyOf: [{ type: 'string' }, { type: 'null' }],
-            description: 'New workout description, for modify',
+            description: 'Workout description, for modify or add',
           },
+          targetDistanceMi: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'miles, for add' },
+          targetElevationFt: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'vertical feet, for add' },
         },
-        required: ['date', 'action', 'newDate', 'description'],
+        required: ['date', 'action', 'newDate', 'workoutType', 'description', 'targetDistanceMi', 'targetElevationFt'],
         additionalProperties: false,
       },
     },
@@ -65,11 +77,16 @@ You can do four things with each message:
    constraint with dates when they can be inferred (an injury is open-ended: null endDate;
    "traveling Thu-Fri" has dates).
 3. ADJUST specific workouts directly — when they ask for a targeted change ("move Saturday's long
-   run to Sunday", "make tomorrow easier", "skip Tuesday"), use the adjustments array:
+   run to Sunday", "make tomorrow easier", "skip Tuesday", "I'm climbing Mt. Elbert on Aug 15"),
+   use the adjustments array:
    - skip: cancels that day's workout
    - move: moves it to newDate (pick a sensible day if they gave a weekday name)
    - modify: rewrites the description (keep it consistent with their goal)
-   Only adjust workouts that exist in the upcoming list, and confirm what you changed in the reply.
+   - add: schedules a NEW workout on that date. Use this to build in a 14er or other big mountain
+     the athlete names — set workoutType to "peak_climb", give it a description and realistic
+     targetDistanceMi / targetElevationFt (a 14er is often 8-14 mi and 3,000-5,500 ft of gain).
+   For skip/move/modify, only touch workouts that exist in the upcoming list. Always confirm what
+   you changed in the reply.
 4. REGENERATE — set updatePlan=true only when the situation calls for rebuilding the whole
    upcoming plan (new injury, deep fatigue, multi-day travel, missed key sessions). Prefer small
    direct adjustments over regeneration when the athlete asked for a specific change. Never both
@@ -124,6 +141,38 @@ function applyAdjustments(userId, adjustments, source = 'sms') {
   );
   let applied = 0;
   for (const adj of adjustments || []) {
+    // "add" schedules a brand-new workout (e.g. a 14er) and needs no existing row
+    if (adj.action === 'add' && /^\d{4}-\d{2}-\d{2}$/.test(adj.date)) {
+      const plan = db
+        .prepare('SELECT id FROM training_plans WHERE user_id = ? AND is_current = 1')
+        .get(userId);
+      // Clear any existing planned workout on that date so the day isn't doubled up
+      db.prepare(
+        `DELETE FROM planned_workouts WHERE user_id = ? AND date = ? AND status IN ('planned', 'modified')`
+      ).run(userId, adj.date);
+      db.prepare(
+        `INSERT INTO planned_workouts (plan_id, user_id, date, workout_type, description, target_distance_m, target_elevation_m, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'modified')`
+      ).run(
+        plan ? plan.id : null,
+        userId,
+        adj.date,
+        adj.workoutType || 'peak_climb',
+        adj.description || 'Big mountain day',
+        adj.targetDistanceMi != null ? adj.targetDistanceMi * 1609.344 : null,
+        adj.targetElevationFt != null ? adj.targetElevationFt / 3.28084 : null
+      );
+      insertConstraint.run(
+        userId,
+        `Athlete added a ${adj.workoutType || 'peak_climb'} on ${adj.date} via coach chat: ${adj.description || 'big mountain day'}`,
+        adj.date,
+        adj.date,
+        source
+      );
+      applied += 1;
+      continue;
+    }
+
     const workout = db
       .prepare(`SELECT * FROM planned_workouts WHERE user_id = ? AND date = ? AND status IN ('planned', 'modified')`)
       .get(userId, adj.date);

@@ -302,6 +302,59 @@ a.button {
   margin: 0.5rem 0 1rem;
 }
 
+.plan-header {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.plan-header-main {
+  flex: 1 1 260px;
+}
+
+.plan-totals {
+  flex: 0 0 auto;
+  min-width: 170px;
+  background: var(--canyon);
+  color: #fdf3de;
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+}
+
+.plan-totals h4 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #f5c083;
+}
+
+.plan-total {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.4rem;
+}
+
+.plan-total strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.plan-total span {
+  font-size: 0.72rem;
+  color: #e8cfb0;
+}
+
+.plan-totals-meta {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  color: #e8cfb0;
+}
+
 .calendar-header {
   display: flex;
   justify-content: space-between;
@@ -391,6 +444,12 @@ a.button {
 .workout-chip.vert {
   background: #e7dcd2;
   color: #5f2e1d;
+}
+
+.workout-chip.peak_climb {
+  background: #d8c39a;
+  color: #4a3410;
+  font-weight: 700;
 }
 
 .workout-chip.hike {

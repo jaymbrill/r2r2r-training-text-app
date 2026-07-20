@@ -6,6 +6,7 @@ const TYPE_LABELS = {
   long_run: 'Long run',
   hike: 'Hike',
   vert: 'Vert',
+  peak_climb: '⛰ Peak',
   back_to_back: 'Back-to-back',
   cross_train: 'Cross-train',
   strength: 'Strength',
@@ -107,17 +108,40 @@ export default function PlanCalendar({ userId, refreshKey = 0 }) {
       <h3>Training plan</h3>
       {error && <p className="error">{error}</p>}
 
-      {plan ? (
-        <p className="plan-summary">
-          {plan.summary}
-          <span className="hint"> (generated {plan.generatedAt} UTC{plan.model === 'fallback' ? ', placeholder plan — set ANTHROPIC_API_KEY for Claude plans' : ''})</span>
-        </p>
-      ) : (
-        <p>No plan yet — generate one to see your next two weeks.</p>
-      )}
-      <button onClick={handleGenerate} disabled={busy}>
-        {busy ? 'Working…' : plan ? 'Regenerate plan' : 'Generate plan'}
-      </button>
+      <div className="plan-header">
+        <div className="plan-header-main">
+          {plan ? (
+            <p className="plan-summary">
+              {plan.summary}
+              <span className="hint"> (generated {plan.generatedAt} UTC{plan.model === 'fallback' ? ', placeholder plan — set ANTHROPIC_API_KEY for Claude plans' : ''})</span>
+            </p>
+          ) : (
+            <p>No plan yet — generate one to build your schedule through race day.</p>
+          )}
+          <button onClick={handleGenerate} disabled={busy}>
+            {busy ? 'Working…' : plan ? 'Regenerate plan' : 'Generate plan'}
+          </button>
+        </div>
+
+        {plan?.totals && plan.totals.days > 0 && (
+          <aside className="plan-totals">
+            <h4>Remaining to race day</h4>
+            <div className="plan-total">
+              <strong>{plan.totals.totalDistanceMi.toLocaleString()}</strong>
+              <span>total miles</span>
+            </div>
+            <div className="plan-total">
+              <strong>{plan.totals.totalElevationFt.toLocaleString()}</strong>
+              <span>total vertical feet</span>
+            </div>
+            <p className="plan-totals-meta">
+              {plan.totals.workouts} workouts
+              {plan.totals.peakClimbs > 0 && ` · ${plan.totals.peakClimbs} peak ${plan.totals.peakClimbs === 1 ? 'day' : 'days'}`}
+              {plan.totals.lastDate && ` · through ${plan.totals.lastDate}`}
+            </p>
+          </aside>
+        )}
+      </div>
 
       {compliance && compliance.totalWorkouts > 0 && (
         <div className="compliance-row">

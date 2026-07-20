@@ -3,14 +3,25 @@ const db = require('../db');
 const { computeTrainingLoad } = require('./stravaService');
 
 const MODEL = 'claude-opus-4-8';
-const PLAN_DAYS = 14;
+const DEFAULT_PLAN_DAYS = 14;
+const MAX_PLAN_DAYS = 182; // cap ~26 weeks so generation stays bounded
+
+/** Days from the start date through the goal date (inclusive), bounded. */
+function planLength(user, startDate) {
+  if (!user.goal_date) return DEFAULT_PLAN_DAYS;
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const goal = new Date(`${user.goal_date}T00:00:00Z`);
+  const days = Math.round((goal - start) / (24 * 3600 * 1000)) + 1;
+  if (!Number.isFinite(days) || days < 1) return DEFAULT_PLAN_DAYS;
+  return Math.min(days, MAX_PLAN_DAYS);
+}
 
 const planSchema = {
   type: 'object',
   properties: {
     summary: {
       type: 'string',
-      description: 'Two or three sentences on the plan focus for the next two weeks',
+      description: 'Two or three sentences on the plan focus and periodization through race day',
     },
     workouts: {
       type: 'array',
@@ -20,7 +31,7 @@ const planSchema = {
           date: { type: 'string', description: 'YYYY-MM-DD' },
           workoutType: {
             type: 'string',
-            enum: ['run', 'long_run', 'hike', 'vert', 'back_to_back', 'cross_train', 'strength', 'rest'],
+            enum: ['run', 'long_run', 'hike', 'vert', 'peak_climb', 'back_to_back', 'cross_train', 'strength', 'rest'],
           },
           description: { type: 'string', description: 'One or two sentences the athlete reads' },
           targetDistanceMi: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'miles' },
@@ -49,9 +60,18 @@ Principles:
 - Respect the athlete's weekly availability, experience level, and current training load.
 - Keep the acute:chronic ramp ratio sustainable (roughly 0.8-1.3); back off when it runs hot,
   and build gradually when there is room.
+- You are building the FULL plan through race day. Periodize it: progressive base building,
+  a peak block ~3-5 weeks out, then a taper in the final 1-2 weeks. Insert recovery/down weeks
+  (roughly every 4th week) with reduced volume.
 - Schedule back-to-back long efforts on adjacent available days as the goal date approaches.
-- Honor all listed constraints (injuries, fatigue, travel, manual edits). Never schedule hard
-  efforts on days the athlete said they are unavailable.
+- Big-mountain days are the best specific preparation for R2R2R. Use the "peak_climb" workout type
+  for 14ers and other large mountain objectives — big sustained climbs and long descents that
+  mimic the Canyon. If the athlete has named specific peaks or dates in their constraints or
+  messages, schedule those on the requested dates; otherwise place peak_climb days on their
+  longest available days during the peak block. Give each a realistic mileage and vertical-foot
+  target (a 14er is often 8-14 miles and 3,000-5,500 ft of gain).
+- Honor all listed constraints (injuries, fatigue, travel, manual edits, planned events). Never
+  schedule hard efforts on days the athlete said they are unavailable.
 - Include genuine rest days. Descending strength (quads) and hiking with poles are fair game.
 - The SMS should be encouraging and specific, like a coach texting an athlete they know.
 - Use US units everywhere the athlete will read: miles for distance, feet for elevation gain.`;
@@ -83,24 +103,25 @@ function buildContext(userId, startDate) {
   return { user, load, constraints, recentMessages };
 }
 
-function datesForPlan(startDate) {
+function datesForPlan(startDate, days) {
   const dates = [];
   const d = new Date(`${startDate}T00:00:00Z`);
-  for (let i = 0; i < PLAN_DAYS; i++) {
+  for (let i = 0; i < days; i++) {
     dates.push(d.toISOString().slice(0, 10));
     d.setUTCDate(d.getUTCDate() + 1);
   }
   return dates;
 }
 
-async function generateWithClaude(context, startDate) {
+async function generateWithClaude(context, startDate, planDays) {
   const client = new Anthropic();
   const { user, load, constraints, recentMessages } = context;
 
   const input = {
     today: new Date().toISOString().slice(0, 10),
     planStartDate: startDate,
-    planDays: PLAN_DAYS,
+    planDays,
+    raceDate: user.goal_date,
     athlete: {
       name: user.name,
       experienceLevel: user.experience_level,
@@ -113,16 +134,17 @@ async function generateWithClaude(context, startDate) {
     recentSmsConversation: recentMessages,
   };
 
-  // Stream to avoid HTTP timeouts on longer generations.
+  // Stream to avoid HTTP timeouts on longer generations; a full plan to race
+  // day can be many months of daily entries.
   const stream = client.messages.stream({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: SYSTEM_PROMPT,
     output_config: { format: { type: 'json_schema', schema: planSchema } },
     messages: [
       {
         role: 'user',
-        content: `Build the next ${PLAN_DAYS}-day training plan starting ${startDate}. One entry per day (use type "rest" for rest days). Athlete data:\n${JSON.stringify(input, null, 2)}`,
+        content: `Build the complete ${planDays}-day training plan starting ${startDate} and running through race day ${user.goal_date}. Exactly one entry per day (use type "rest" for rest days). Periodize across the whole block and place peak_climb / big-mountain days as described. Athlete data:\n${JSON.stringify(input, null, 2)}`,
       },
     ],
   });
@@ -146,11 +168,11 @@ async function generateWithClaude(context, startDate) {
  * Deterministic fallback used when ANTHROPIC_API_KEY is not configured, so the
  * app is fully testable in development. Marked model: "fallback" in the DB.
  */
-function generateFallback(context, startDate) {
+function generateFallback(context, startDate, planDays) {
   const { user } = context;
   const availability = JSON.parse(user.weekly_availability);
   const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-  const workouts = datesForPlan(startDate).map((date) => {
+  const workouts = datesForPlan(startDate, planDays).map((date) => {
     const dow = dayKeys[new Date(`${date}T00:00:00Z`).getUTCDay()];
     const hours = availability[dow] || 0;
     if (!hours) {
@@ -187,10 +209,11 @@ function generateFallback(context, startDate) {
 async function generatePlan(userId, { startDate } = {}) {
   const start = startDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const context = buildContext(userId, start);
+  const planDays = planLength(context.user, start);
 
   const { plan, model } = process.env.ANTHROPIC_API_KEY
-    ? await generateWithClaude(context, start)
-    : generateFallback(context, start);
+    ? await generateWithClaude(context, start, planDays)
+    : generateFallback(context, start, planDays);
 
   const insertPlan = db.transaction(() => {
     db.prepare('UPDATE training_plans SET is_current = 0 WHERE user_id = ?').run(userId);

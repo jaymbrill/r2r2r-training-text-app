@@ -35,13 +35,41 @@ router.post('/generate/:userId', async (req, res, next) => {
   }
 });
 
-// Current plan metadata
+// Current plan metadata, including planned totals through race day
 router.get('/current/:userId', (req, res) => {
   const plan = db
     .prepare('SELECT * FROM training_plans WHERE user_id = ? AND is_current = 1')
     .get(req.params.userId);
   if (!plan) return res.status(404).json({ errors: ['No plan generated yet'] });
-  res.json({ id: plan.id, generatedAt: plan.generated_at, model: plan.model, summary: plan.summary });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const totals = db
+    .prepare(
+      `SELECT COALESCE(SUM(target_distance_m), 0) AS distance_m,
+              COALESCE(SUM(target_elevation_m), 0) AS elevation_m,
+              COUNT(*) AS days,
+              SUM(CASE WHEN workout_type != 'rest' THEN 1 ELSE 0 END) AS workouts,
+              MAX(date) AS last_date,
+              SUM(CASE WHEN workout_type = 'peak_climb' THEN 1 ELSE 0 END) AS peaks
+       FROM planned_workouts
+       WHERE user_id = ? AND date >= ?`
+    )
+    .get(req.params.userId, today);
+
+  res.json({
+    id: plan.id,
+    generatedAt: plan.generated_at,
+    model: plan.model,
+    summary: plan.summary,
+    totals: {
+      totalDistanceMi: Math.round(totals.distance_m / 1609.344),
+      totalElevationFt: Math.round(totals.elevation_m * 3.28084),
+      days: totals.days,
+      workouts: totals.workouts,
+      peakClimbs: totals.peaks,
+      lastDate: totals.last_date,
+    },
+  });
 });
 
 // Workouts in a date range (for the calendar)
