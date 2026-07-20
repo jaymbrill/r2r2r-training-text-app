@@ -425,6 +425,43 @@ a.button {
   line-height: 1.2;
 }
 
+/* Actual Strava volume for the day */
+.cell-actual {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--sage);
+  line-height: 1.2;
+}
+
+.day-number {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.pct-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 0 3px;
+}
+
+.pct-badge.good {
+  background: #e0e8d6;
+  color: #3f5230;
+}
+
+.pct-badge.ok {
+  background: #f6e3c2;
+  color: #8a5a14;
+}
+
+.pct-badge.low {
+  background: #f3d3cd;
+  color: #8f2a1c;
+}
+
 /* ---------- Coach chat ---------- */
 
 .chat-section {

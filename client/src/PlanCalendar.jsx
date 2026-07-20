@@ -12,6 +12,13 @@ const TYPE_LABELS = {
   rest: 'Rest',
 }
 
+function fmtStats(mi, ft) {
+  return [
+    mi != null && `${mi} mi`,
+    ft != null && `${ft >= 1000 ? `${(ft / 1000).toFixed(1)}k` : ft} ft`,
+  ].filter(Boolean).join(' · ')
+}
+
 function monthRange(year, month) {
   const first = new Date(Date.UTC(year, month, 1))
   const last = new Date(Date.UTC(year, month + 1, 0))
@@ -24,6 +31,7 @@ export default function PlanCalendar({ userId, refreshKey = 0 }) {
   const [month, setMonth] = useState(today.getMonth()) // 0-based
   const [plan, setPlan] = useState(null)
   const [workouts, setWorkouts] = useState([])
+  const [actuals, setActuals] = useState({})
   const [compliance, setCompliance] = useState(null)
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -33,7 +41,9 @@ export default function PlanCalendar({ userId, refreshKey = 0 }) {
     setError(null)
     try {
       const [from, to] = monthRange(year, month)
-      setWorkouts(await api.workouts(userId, from, to))
+      const data = await api.calendar(userId, from, to)
+      setWorkouts(data.workouts)
+      setActuals(data.actuals || {})
       setPlan(await api.currentPlan(userId).catch(() => null))
       setCompliance(await api.compliance(userId).catch(() => null))
     } catch (err) {
@@ -149,25 +159,42 @@ export default function PlanCalendar({ userId, refreshKey = 0 }) {
               className={`calendar-cell ${cell.date === todayStr ? 'today' : ''} ${selected?.date === cell.date ? 'selected' : ''}`}
               onClick={() => cell.workout && setSelected(cell.workout)}
             >
-              <span className="day-number">{cell.day}</span>
+              <span className="day-number">
+                {cell.day}
+                {cell.workout?.compliancePct != null && (
+                  <span
+                    className={`pct-badge ${
+                      cell.workout.compliancePct >= 90 ? 'good' : cell.workout.compliancePct >= 60 ? 'ok' : 'low'
+                    }`}
+                    title="Percent of planned mileage and vert completed (Strava)"
+                  >
+                    {cell.workout.compliancePct}%
+                  </span>
+                )}
+              </span>
               {cell.workout && (
                 <>
                   <span className={`workout-chip ${cell.workout.workoutType} ${cell.workout.status}`}>
                     {TYPE_LABELS[cell.workout.workoutType] || cell.workout.workoutType}
                     {cell.workout.status !== 'planned' && ` · ${cell.workout.status}`}
                   </span>
-                  {(cell.workout.targetDistanceMi != null || cell.workout.targetElevationFt != null) && (
-                    <span className="cell-stats">
-                      {[
-                        cell.workout.targetDistanceMi != null && `${cell.workout.targetDistanceMi} mi`,
-                        cell.workout.targetElevationFt != null &&
-                          `${cell.workout.targetElevationFt >= 1000
-                            ? `${(cell.workout.targetElevationFt / 1000).toFixed(1)}k`
-                            : cell.workout.targetElevationFt} ft`,
-                      ].filter(Boolean).join(' · ')}
+                  {actuals[cell.date] ? (
+                    <span className="cell-actual">
+                      {fmtStats(actuals[cell.date].distanceMi, actuals[cell.date].elevationFt)}
                     </span>
+                  ) : (
+                    (cell.workout.targetDistanceMi != null || cell.workout.targetElevationFt != null) && (
+                      <span className="cell-stats">
+                        {fmtStats(cell.workout.targetDistanceMi, cell.workout.targetElevationFt)}
+                      </span>
+                    )
                   )}
                 </>
+              )}
+              {!cell.workout && actuals[cell.date] && (
+                <span className="cell-actual">
+                  {fmtStats(actuals[cell.date].distanceMi, actuals[cell.date].elevationFt)}
+                </span>
               )}
             </div>
           )
@@ -179,13 +206,22 @@ export default function PlanCalendar({ userId, refreshKey = 0 }) {
           <h4>{selected.date} — {TYPE_LABELS[selected.workoutType] || selected.workoutType}</h4>
           <p>{selected.description}</p>
           <p className="hint">
+            {'Planned: '}
             {[
               selected.targetDistanceMi != null && `${selected.targetDistanceMi} mi`,
               selected.targetElevationFt != null && `${selected.targetElevationFt.toLocaleString()} ft vert`,
               selected.targetDurationMin != null && `${selected.targetDurationMin} min`,
-            ].filter(Boolean).join(' · ') || 'No targets'}
+            ].filter(Boolean).join(' · ') || 'no targets'}
             {' · status: '}{selected.status}
           </p>
+          {selected.actualDistanceMi != null && (
+            <p className="hint">
+              {'Actual (Strava): '}
+              {`${selected.actualDistanceMi} mi · ${selected.actualElevationFt.toLocaleString()} ft vert`}
+              {selected.distancePct != null && ` · ${selected.distancePct}% of mileage`}
+              {selected.vertPct != null && ` · ${selected.vertPct}% of vert`}
+            </p>
+          )}
           <div className="workout-actions">
             <button disabled={busy || selected.status === 'completed'}
               onClick={() => handleWorkoutUpdate(selected.id, { status: 'completed' })}>

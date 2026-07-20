@@ -54,6 +54,64 @@ router.get('/workouts/:userId', (req, res) => {
   res.json(rows.map(serializeWorkout));
 });
 
+// Calendar data: planned workouts merged with actual Strava volume per day,
+// plus per-day compliance (% of needed mileage and vert completed)
+router.get('/calendar/:userId', (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ errors: ['from and to query params are required (YYYY-MM-DD)'] });
+
+  const rows = db
+    .prepare(`SELECT * FROM planned_workouts WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date`)
+    .all(req.params.userId, from, to);
+
+  // Actual Strava volume summed per day (covers rest days and unplanned days too)
+  const actuals = {};
+  for (const a of db
+    .prepare(
+      `SELECT substr(start_date, 1, 10) AS date,
+              SUM(distance_m) AS distance_m,
+              SUM(elevation_gain_m) AS elevation_m,
+              SUM(moving_time_s) AS moving_s
+       FROM activities
+       WHERE user_id = ? AND substr(start_date, 1, 10) BETWEEN ? AND ?
+       GROUP BY substr(start_date, 1, 10)`
+    )
+    .all(req.params.userId, from, to)) {
+    actuals[a.date] = {
+      distanceMi: +(a.distance_m / 1609.344).toFixed(1),
+      elevationFt: Math.round(a.elevation_m * 3.28084),
+      movingMin: Math.round(a.moving_s / 60),
+    };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const pct = (actual, target) => Math.min(200, Math.round((actual / target) * 100));
+
+  const workouts = rows.map((row) => {
+    const w = serializeWorkout(row);
+    const act = actuals[w.date];
+    if (act && w.date <= today) {
+      w.actualDistanceMi = act.distanceMi;
+      w.actualElevationFt = act.elevationFt;
+      const pcts = [];
+      if (w.targetDistanceMi > 0) {
+        w.distancePct = pct(act.distanceMi, w.targetDistanceMi);
+        pcts.push(w.distancePct);
+      }
+      if (w.targetElevationFt > 0) {
+        w.vertPct = pct(act.elevationFt, w.targetElevationFt);
+        pcts.push(w.vertPct);
+      }
+      if (pcts.length) {
+        w.compliancePct = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+      }
+    }
+    return w;
+  });
+
+  res.json({ workouts, actuals });
+});
+
 // Adjust a workout (status and/or details). Manual edits are recorded as
 // constraints so future Claude regenerations respect them.
 router.patch('/workouts/:id', (req, res) => {
